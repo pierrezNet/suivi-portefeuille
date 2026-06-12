@@ -87,7 +87,25 @@ def _demarrer_gele() -> None:
         raise
 
 
+def _preparer_donnees() -> None:
+    """Migrations de schéma au démarrage, avec sauvegarde préalable.
+
+    Lancé au démarrage réel (jamais en tests, qui importent ``create_app`` sans
+    exécuter ce module). Indispensable pour les amis Windows qui ne peuvent pas
+    lancer de script de migration à la main.
+    """
+    from app.services import migrations
+    from tools import backup
+
+    data_dir = app.config["DATA_DIR"]
+    migrations.appliquer(
+        data_dir,
+        sauvegarder=lambda dd: backup.creer_sauvegarde(dd),
+    )
+
+
 if __name__ == "__main__":
+    _preparer_donnees()
     if getattr(sys, "frozen", False):
         _demarrer_gele()
     else:
