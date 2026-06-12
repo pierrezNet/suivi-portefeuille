@@ -101,28 +101,64 @@ def _exec_git(args: list[str], cwd: Path) -> str:
     return res.stdout
 
 
-def _publier_fichiers(repo: Path, data_chiffre: dict, html: str) -> None:
-    """Écrit data.enc.json + index.html + assets PWA dans le repo."""
-    (repo / "data.enc.json").write_text(
-        json.dumps(data_chiffre, indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
-    (repo / "index.html").write_text(html, encoding="utf-8")
-    # Un .nojekyll évite le pipeline Jekyll de GitHub Pages
-    (repo / ".nojekyll").write_text("", encoding="utf-8")
-
-    # --- Assets PWA (manifest, icônes, service worker) ---
-    import shutil
+def _construire_fichiers(data_chiffre: dict, html: str) -> dict[str, bytes]:
+    """Assemble le jeu de fichiers à publier, **indépendamment du transport**
+    (git local ou API GitHub). Clé = chemin dans le repo, valeur = contenu.
+    """
+    fichiers: dict[str, bytes] = {
+        "data.enc.json": json.dumps(
+            data_chiffre, indent=2, ensure_ascii=False
+        ).encode("utf-8"),
+        "index.html": html.encode("utf-8"),
+        # .nojekyll évite le pipeline Jekyll de GitHub Pages
+        ".nojekyll": b"",
+    }
+    # Assets PWA (manifest, icônes)
     for nom in ("manifest.json", "icon.svg", "icon-192.png", "icon-512.png",
                 "apple-touch-icon-180.png"):
-        shutil.copyfile(TEMPLATES / nom, repo / nom)
-
-    # Service worker : on injecte un BUILD_ID unique pour versionner le cache
-    # (date+heure de publication). À chaque sync, l'ancien cache est purgé.
+        fichiers[nom] = (TEMPLATES / nom).read_bytes()
+    # Service worker : BUILD_ID unique (date+heure) pour versionner le cache —
+    # à chaque sync, l'ancien cache est purgé côté navigateur.
     build_id = datetime.now().strftime("%Y%m%d-%H%M%S")
-    sw_contenu = (TEMPLATES / "sw.js").read_text(encoding="utf-8")
-    sw_contenu = sw_contenu.replace("__BUILD_ID__", build_id)
-    (repo / "sw.js").write_text(sw_contenu, encoding="utf-8")
+    sw = (TEMPLATES / "sw.js").read_text(encoding="utf-8").replace(
+        "__BUILD_ID__", build_id
+    )
+    fichiers["sw.js"] = sw.encode("utf-8")
+    return fichiers
+
+
+def _ecrire_fichiers_disque(repo: Path, fichiers: dict[str, bytes]) -> None:
+    """Écrit les fichiers dans le repo Git local (transport git)."""
+    for nom, contenu in fichiers.items():
+        (repo / nom).write_bytes(contenu)
+
+
+def _preparer_fichiers(depot: Depot, mot_passe: str) -> dict[str, bytes]:
+    """Construit + chiffre les données, rend le HTML, et assemble le jeu de
+    fichiers prêt à publier. Commun aux transports git et API.
+
+    Lève ``chiffrement.MotPasseInvalide`` si le mot de passe fait < 15 car.
+    """
+    data = dashboard_data.construire(depot, rattraper_virements=True)
+    data = _enrichir_pour_export(data)
+    # Sérialise les Decimal/dataclass/dates puis re-parse en types JSON purs.
+    payload_clair = json.loads(
+        json.dumps(data, cls=_EncodeurDashboard, ensure_ascii=False)
+    )
+    paquet = chiffrement.chiffrer(payload_clair, mot_passe)
+
+    # HTML statique : CSS + JS inlinés, AUCUNE donnée métier en clair.
+    css_inline = (TEMPLATES / "dashboard_mobile.css").read_text(encoding="utf-8")
+    js_inline = (TEMPLATES / "cloud_app.js").read_text(encoding="utf-8")
+    env = Environment(
+        loader=FileSystemLoader(TEMPLATES),
+        autoescape=select_autoescape(["html"]),
+    )
+    html = env.get_template("cloud_index.html.j2").render(
+        css_inline=css_inline,
+        js_inline=js_inline,
+    )
+    return _construire_fichiers(paquet.to_dict(), html)
 
 
 def _git_push(repo: Path, branche: str, message: str, push: bool = True) -> None:
@@ -175,39 +211,131 @@ def publier(
     if push is None:
         push = os.environ.get("BOURSE_DASHBOARD_NO_PUSH") != "1"
 
-    # 1. Construire les données. DATA_DIR configurable : en .exe gelé, RACINE
-    #    pointe dans le bundle (lecture seule) → on lit le dossier utilisateur.
+    # Construire le jeu de fichiers (DATA_DIR configurable : en .exe gelé,
+    # RACINE pointe dans le bundle lecture seule → on lit le dossier utilisateur).
     depot = Depot(Path(data_dir) if data_dir else RACINE / "data")
-    data = dashboard_data.construire(depot, rattraper_virements=True)
-    data = _enrichir_pour_export(data)
+    fichiers = _preparer_fichiers(depot, mdp)  # lève si mdp < 15 caractères
 
-    # 2. Chiffrer (lèvera MotPasseInvalide si < 15 caractères)
-    payload_clair = json.loads(
-        json.dumps(data, cls=_EncodeurDashboard, ensure_ascii=False)
-    )
-    paquet = chiffrement.chiffrer(payload_clair, mdp)
-
-    # 3. Construire le HTML statique (CSS + JS inlinés, AUCUNE donnée inline)
-    css_inline = (TEMPLATES / "dashboard_mobile.css").read_text(encoding="utf-8")
-    js_inline = (TEMPLATES / "cloud_app.js").read_text(encoding="utf-8")
-    env = Environment(
-        loader=FileSystemLoader(TEMPLATES),
-        autoescape=select_autoescape(["html"]),
-    )
-    template = env.get_template("cloud_index.html.j2")
-    html = template.render(
-        css_inline=css_inline,
-        js_inline=js_inline,
-    )
-
-    # 4. Écrire dans le repo
-    _publier_fichiers(repo_path, paquet.to_dict(), html)
-
-    # 5. Commit + push
+    # Écrire dans le repo local puis commit + push.
+    _ecrire_fichiers_disque(repo_path, fichiers)
     message = f"Dashboard : sync {_format_date_fr(datetime.now())}"
     _git_push(repo_path, branche, message, push=push)
 
     return repo_path / "index.html"
+
+
+class PublicationAPIErreur(RuntimeError):
+    """Échec d'une requête vers l'API GitHub lors de la publication."""
+
+
+def _message_erreur_api(reponse, contexte: str) -> str:
+    """Construit un message d'erreur lisible à partir d'une réponse GitHub."""
+    try:
+        details = reponse.json().get("message") or reponse.text
+    except Exception:  # noqa: BLE001 — corps non-JSON
+        details = reponse.text
+    indices = {
+        401: " (token invalide ou expiré ?)",
+        403: " (permissions du token insuffisantes ou quota atteint ?)",
+        404: " (dépôt ou utilisateur introuvable ? token sans accès ?)",
+        409: " (conflit : réessaie la publication)",
+    }.get(reponse.status_code, "")
+    return f"{contexte} : HTTP {reponse.status_code} — {details}{indices}"
+
+
+def _transport_api_github(
+    fichiers: dict[str, bytes],
+    *,
+    owner: str,
+    repo: str,
+    branche: str,
+    token: str,
+    message: str,
+    session=None,
+) -> None:
+    """Pousse chaque fichier via l'API HTTP GitHub (Contents API).
+
+    Aucun git ni SSH requis : c'est le transport utilisé par le .exe des amis.
+    Pour chaque fichier on récupère d'abord le ``sha`` existant (nécessaire pour
+    une mise à jour), puis on ``PUT`` le contenu encodé en base64.
+    """
+    import base64
+
+    if session is None:
+        import requests  # import paresseux : pas requis au démarrage de l'app
+
+        session = requests.Session()
+
+    base = f"https://api.github.com/repos/{owner}/{repo}/contents/"
+    entetes = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    for chemin, contenu in fichiers.items():
+        url = base + chemin
+        reponse = session.get(url, headers=entetes, params={"ref": branche}, timeout=30)
+        sha = None
+        if reponse.status_code == 200:
+            sha = reponse.json().get("sha")
+        elif reponse.status_code != 404:
+            raise PublicationAPIErreur(_message_erreur_api(reponse, f"lecture {chemin}"))
+
+        corps = {
+            "message": message,
+            "content": base64.b64encode(contenu).decode("ascii"),
+            "branch": branche,
+        }
+        if sha:
+            corps["sha"] = sha
+        rep_put = session.put(url, headers=entetes, json=corps, timeout=30)
+        if rep_put.status_code not in (200, 201):
+            raise PublicationAPIErreur(_message_erreur_api(rep_put, f"écriture {chemin}"))
+
+
+def publier_via_api(
+    *,
+    data_dir: str | Path | None = None,
+    mot_passe: str | None = None,
+    owner: str | None = None,
+    repo: str | None = None,
+    token: str | None = None,
+    branche: str = "main",
+    message: str | None = None,
+    session=None,
+) -> dict:
+    """Publication via l'API HTTP GitHub (transport « api », sans git local).
+
+    Destinée au .exe Windows des amis : aucun git ni SSH requis, juste un token
+    GitHub. Renvoie un récap ``{fichiers, taille_data, url_pages}``.
+    """
+    manquants = [
+        nom for nom, val in (
+            ("propriétaire (owner)", owner),
+            ("dépôt (repo)", repo),
+            ("token GitHub", token),
+            ("mot de passe", mot_passe),
+        ) if not val
+    ]
+    if manquants:
+        raise ConfigManquante(
+            "Publication mobile impossible — paramètres manquants : "
+            + ", ".join(manquants)
+            + ". Renseigne-les dans la page Réglages."
+        )
+
+    depot = Depot(Path(data_dir) if data_dir else RACINE / "data")
+    fichiers = _preparer_fichiers(depot, mot_passe)  # lève si mdp < 15 caractères
+    message = message or f"Dashboard : sync {_format_date_fr(datetime.now())}"
+    _transport_api_github(
+        fichiers, owner=owner, repo=repo, branche=branche,
+        token=token, message=message, session=session,
+    )
+    return {
+        "fichiers": sorted(fichiers),
+        "taille_data": len(fichiers["data.enc.json"]),
+        "url_pages": f"https://{owner}.github.io/{repo}/",
+    }
 
 
 def _humaniser_taille(n: int) -> str:
