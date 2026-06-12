@@ -1,9 +1,24 @@
 """Tests de la sauvegarde portable (zip cross-platform)."""
 
+import json
 import zipfile
 
 from app.services.stockage import Depot
 from tools import backup
+
+
+def test_creer_sauvegarde_exclut_le_token(tmp_path):
+    """reglages.json (token GitHub en clair) ne doit JAMAIS entrer dans le zip."""
+    data_dir = tmp_path / "data"
+    Depot(data_dir).enregistrer("comptes", [])
+    (data_dir / "reglages.json").write_text(
+        json.dumps({"github_token": "ghp_secret"}), encoding="utf-8"
+    )
+    archive = backup.creer_sauvegarde(data_dir, horodatage="20260101-000000")
+    with zipfile.ZipFile(archive) as z:
+        noms = set(z.namelist())
+    assert "reglages.json" not in noms
+    assert "comptes.json" in noms
 
 
 def test_creer_sauvegarde_contient_les_json(tmp_path):

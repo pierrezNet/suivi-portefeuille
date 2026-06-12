@@ -4,19 +4,19 @@
   selon la config, port 5000.
 - Mode gelé (.exe PyInstaller distribué aux amis) : port libre choisi
   automatiquement, navigateur ouvert tout seul, reloader désactivé (fatal dans
-  un bundle), erreur fatale journalisée et signalée à l'utilisateur Windows.
+  un bundle), et **toute** l'initialisation (création de l'app, migrations,
+  sauvegarde) enveloppée dans un filet qui journalise et signale une erreur
+  fatale par un popup — pour qu'une panne ne ferme jamais le .exe en silence.
 """
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
 from app import create_app
 from app.services import runtime
-
-
-app = create_app()
 
 
 def _ouvrir_navigateur(url: str, delai: float = 1.0) -> None:
@@ -54,8 +54,8 @@ def _signaler_erreur_fatale(e: Exception, data_dir: Path) -> None:
 
 def _securiser_sorties_standard(data_dir: Path) -> None:
     """En mode fenêtré (.exe console=False), ``sys.stdout``/``stderr`` valent
-    ``None`` : Werkzeug écrirait dans le vide et lèverait. On les redirige vers
-    ``app.log`` pour que la journalisation du serveur fonctionne sans planter.
+    ``None`` : Werkzeug (et tout ``print``) écrirait dans le vide et lèverait.
+    On les redirige vers ``app.log``. Appelé **avant** toute initialisation.
     """
     if sys.stdout is not None and sys.stderr is not None:
         return
@@ -71,14 +71,38 @@ def _securiser_sorties_standard(data_dir: Path) -> None:
         sys.stderr = flux
 
 
-def _demarrer_gele() -> None:
-    """Démarrage robuste pour l'exécutable distribué."""
+def _preparer_donnees(app) -> None:
+    """Migrations de schéma au démarrage (sauvegarde + rotation des backups).
+
+    Indispensable pour les amis Windows qui ne peuvent pas lancer de script de
+    migration à la main. N'est jamais exécuté par les tests (qui importent
+    ``create_app`` sans exécuter ce module).
+    """
+    from app.services import migrations
+    from tools import backup
+
     data_dir = Path(app.config["DATA_DIR"])
+    migrations.appliquer(data_dir, sauvegarder=lambda dd: backup.creer_sauvegarde(dd))
+    backup.purger_anciennes(data_dir.parent / "backups", garder=30)
+
+
+def _demarrer_gele() -> None:
+    """Démarrage robuste pour l'exécutable distribué.
+
+    On résout le dossier de données et on sécurise stdout/stderr + le filet
+    d'erreur **avant** toute initialisation, de sorte qu'une panne (dossier non
+    inscriptible, données corrompues) soit journalisée et affichée plutôt que de
+    fermer le .exe en silence.
+    """
+    from config import Config
+
+    data_dir = Path(Config.DATA_DIR)
     _securiser_sorties_standard(data_dir)
     try:
+        app = create_app()  # verifier_ecriture peut lever ici (dossier read-only)
+        _preparer_donnees(app)
         port = runtime.trouver_port_libre(5000)
-        url = f"http://127.0.0.1:{port}"
-        _ouvrir_navigateur(url)
+        _ouvrir_navigateur(f"http://127.0.0.1:{port}")
         # use_reloader=False : le reloader relancerait le .exe en boucle.
         app.run(host="127.0.0.1", port=port, debug=False,
                 use_reloader=False, threaded=True)
@@ -87,26 +111,19 @@ def _demarrer_gele() -> None:
         raise
 
 
-def _preparer_donnees() -> None:
-    """Migrations de schéma au démarrage, avec sauvegarde préalable.
-
-    Lancé au démarrage réel (jamais en tests, qui importent ``create_app`` sans
-    exécuter ce module). Indispensable pour les amis Windows qui ne peuvent pas
-    lancer de script de migration à la main.
-    """
-    from app.services import migrations
-    from tools import backup
-
-    data_dir = app.config["DATA_DIR"]
-    migrations.appliquer(
-        data_dir,
-        sauvegarder=lambda dd: backup.creer_sauvegarde(dd),
-    )
+def _demarrer_dev() -> None:
+    """Démarrage en mode développement (depuis les sources)."""
+    app = create_app()
+    # Sous le reloader Werkzeug, le module tourne dans le superviseur ET dans le
+    # worker rechargé : on n'applique migrations/backup qu'une fois, dans le
+    # worker (WERKZEUG_RUN_MAIN), pour ne pas dupliquer sauvegardes et écritures.
+    if not app.config.get("DEBUG") or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        _preparer_donnees(app)
+    app.run(host="127.0.0.1", port=5000, debug=app.config.get("DEBUG", False))
 
 
 if __name__ == "__main__":
-    _preparer_donnees()
     if getattr(sys, "frozen", False):
         _demarrer_gele()
     else:
-        app.run(host="127.0.0.1", port=5000, debug=app.config.get("DEBUG", False))
+        _demarrer_dev()

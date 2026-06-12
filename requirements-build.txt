@@ -2,4 +2,4 @@
 # Installées en plus de requirements.txt sur le runner GitHub Actions
 # windows-latest pour produire le .exe :
 #   pip install -r requirements.txt -r requirements-build.txt
-pyinstaller>=6.10
+pyinstaller==6.11.1

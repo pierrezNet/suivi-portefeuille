@@ -27,7 +27,9 @@ def trouver_port_libre(
     for delta in range(max_essais):
         port = prefere + delta
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            # PAS de SO_REUSEADDR ici : sous Windows il autorise le bind sur un
+            # port DÉJÀ actif (sémantique « hijack »), ce qui ferait croire libre
+            # un port occupé. Le bind nu est le test de disponibilité fiable.
             try:
                 s.bind((host, port))
             except OSError:

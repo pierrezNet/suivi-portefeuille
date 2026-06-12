@@ -76,12 +76,15 @@ def publication_api_configuree(reglages: dict) -> bool:
     return all(reglages.get(c) for c in ("github_user", "github_repo", "github_token"))
 
 
-def generer_phrase_passe(nb_mots: int = 6) -> str:
+def generer_phrase_passe(nb_mots: int = 7) -> str:
     """Suggère une phrase de passe diceware (mots aléatoires + nombre).
 
-    Garantit largement la longueur minimale (≥ 15 caractères) et reste
-    mémorisable. Aléa cryptographique (``secrets``).
+    Plancher de 6 mots : avec ~108 mots la phrase vise ~50 bits d'entropie, ce
+    qui — combiné aux 600 000 itérations PBKDF2 — protège le blob `data.enc.json`
+    publié. Reste mémorisable. Aléa cryptographique (``secrets``). C'est une
+    suggestion : un gestionnaire de mots de passe avec une phrase plus longue
+    est idéal.
     """
-    mots = [secrets.choice(_MOTS) for _ in range(max(4, nb_mots))]
+    mots = [secrets.choice(_MOTS) for _ in range(max(6, nb_mots))]
     nombre = secrets.randbelow(90) + 10
     return "-".join(mots) + f"-{nombre}"

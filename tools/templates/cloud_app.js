@@ -40,7 +40,9 @@
     const salt = b64ToBytes(paquet.salt);
     const iv = b64ToBytes(paquet.iv);
     const ct = b64ToBytes(paquet.ct);
-    const cle = await deriverCle(motPasse, salt, paquet.iter || 200000);
+    // Repli aligné sur le défaut Python (chiffrement.ITERATIONS) ; en pratique
+    // `paquet.iter` est toujours présent dans data.enc.json.
+    const cle = await deriverCle(motPasse, salt, paquet.iter || 600000);
     const clair = await crypto.subtle.decrypt(
       { name: "AES-GCM", iv: iv },
       cle,

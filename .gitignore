@@ -6,6 +6,18 @@ app.log
 *.log
 backups/
 .env
+# Filet défensif (non ancré) : même si BOURSE_DATA_DIR pointe un dossier
+# autrement nommé dans le repo, ces fichiers de données ne seront pas suivis.
+comptes.json
+mouvements.json
+titres.json
+watchlist.json
+evenements.json
+notes_titres.json
+virements_programmes.json
+predictions.json
+snapshots.json
+meta.json
 
 # --- Environnement Python ---
 .venv/

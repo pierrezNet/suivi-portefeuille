@@ -37,7 +37,9 @@ jobs:
         run: pyinstaller build.spec --noconfirm
 
       - name: Zipper le dossier de distribution
-        run: Compress-Archive -Path dist/Suivi-Portefeuille/* -DestinationPath dist/Suivi-Portefeuille-windows.zip
+        # Sans /* : on conserve le dossier racine « Suivi-Portefeuille/ » dans le
+        # zip (le .exe --onedir DOIT rester à côté de _internal/).
+        run: Compress-Archive -Path dist/Suivi-Portefeuille -DestinationPath dist/Suivi-Portefeuille-windows.zip
 
       - name: Publier l'artifact (téléchargeable depuis l'onglet Actions)
         uses: actions/upload-artifact@v4

@@ -18,10 +18,17 @@ from datetime import datetime
 from pathlib import Path
 
 
-def creer_sauvegarde(data_dir, dest_dir=None, *, horodatage: str | None = None) -> Path:
-    """Zippe les fichiers JSON de ``data_dir`` dans une archive datée.
+# Fichiers JAMAIS inclus dans une sauvegarde : reglages.json contient le token
+# GitHub en clair. On ne veut pas le dupliquer dans des archives que
+# l'utilisateur peut copier sur une clé / un cloud (fuite de secret).
+FICHIERS_EXCLUS = {"reglages.json"}
 
-    Renvoie le chemin de l'archive créée.
+
+def creer_sauvegarde(data_dir, dest_dir=None, *, horodatage: str | None = None) -> Path:
+    """Zippe les fichiers JSON de données de ``data_dir`` dans une archive datée.
+
+    Exclut les fichiers de secrets (``FICHIERS_EXCLUS``). Renvoie le chemin de
+    l'archive créée.
     """
     data_dir = Path(data_dir)
     dest_dir = Path(dest_dir) if dest_dir else data_dir.parent / "backups"
@@ -30,7 +37,7 @@ def creer_sauvegarde(data_dir, dest_dir=None, *, horodatage: str | None = None) 
     archive = dest_dir / f"data-{horodatage}.zip"
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as z:
         for fichier in sorted(data_dir.rglob("*.json")):
-            if fichier.is_file():
+            if fichier.is_file() and fichier.name not in FICHIERS_EXCLUS:
                 z.write(fichier, fichier.relative_to(data_dir))
     return archive
 

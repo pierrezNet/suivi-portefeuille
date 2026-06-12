@@ -68,11 +68,18 @@ sans perdre tes données** — elles ne sont pas dans le dossier du programme.
 
 ## 4. Sauvegarder mes données
 
-- L'application crée **automatiquement une sauvegarde** (dossier `backups` à
-  côté de `data`) avant toute mise à jour interne du format de données.
+- L'application crée **automatiquement une sauvegarde** (archives `.zip` dans le
+  dossier `backups` à côté de `data`) avant toute mise à jour interne du format.
+  Ces archives **excluent** ton token GitHub : tu peux les partager sans risque.
 - **Sauvegarde manuelle** : copie le dossier
   `%LOCALAPPDATA%\Suivi-Portefeuille\data` sur une clé USB ou un cloud perso.
-  C'est tout ce qu'il faut conserver.
+  ⚠️ Ce dossier contient le fichier `reglages.json` avec **ton token GitHub** :
+  garde cette copie **privée** (ou préfère les archives `backups/`, qui ne le
+  contiennent pas).
+
+> 🛠️ **Changer l'emplacement des données** (avancé) : définis la variable
+> d'environnement `BOURSE_DATA_DIR` vers le dossier de ton choix avant de lancer
+> l'application.
 
 ---
 

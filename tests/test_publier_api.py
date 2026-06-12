@@ -112,6 +112,29 @@ def test_transport_erreur_put_leve():
         )
 
 
+def test_transport_relance_sur_409():
+    """Un 409 (sha périmé) déclenche une relecture + re-PUT, puis réussit."""
+
+    class _SessionConflit(_FausseSession):
+        def __init__(self):
+            super().__init__()
+            self.essais = {}
+
+        def put(self, url, headers=None, json=None, timeout=None):
+            chemin = self._chemin(url)
+            self.essais[chemin] = self.essais.get(chemin, 0) + 1
+            if self.essais[chemin] == 1:
+                return _FausseReponse(409, {"message": "conflict"})
+            return _FausseReponse(201, {})
+
+    sess = _SessionConflit()
+    pub._transport_api_github(
+        {"data.enc.json": b"x"}, owner="a", repo="d", branche="main",
+        token="t", message="m", session=sess,
+    )
+    assert sess.essais["data.enc.json"] == 2  # 1 échec 409 + 1 succès
+
+
 # --- publier_via_api --------------------------------------------------------
 
 def test_publier_via_api_bout_en_bout(data_exemple):

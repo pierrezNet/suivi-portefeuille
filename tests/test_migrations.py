@@ -56,3 +56,20 @@ def test_migration_deja_appliquee_non_rejouee(tmp_path, monkeypatch):
     migrations._ecrire_version(tmp_path, 2)  # déjà à jour
     migrations.appliquer(tmp_path)
     assert compteur == []  # non rejouée
+
+
+def test_appliquer_ne_retrograde_pas(tmp_path):
+    """Des données d'un .exe plus récent (v5) ne sont jamais rétrogradées."""
+    migrations._ecrire_version(tmp_path, 5)
+    version = migrations.appliquer(tmp_path)  # binaire à VERSION_SCHEMA_COURANTE=1
+    assert version == 5
+    assert migrations.version_actuelle(tmp_path) == 5
+
+
+def test_appliquer_n_ecrit_pas_si_deja_a_jour(tmp_path, monkeypatch):
+    """Pas d'écriture parasite de meta.json à chaque démarrage de régime."""
+    migrations.appliquer(tmp_path)  # premier passage : crée meta.json
+    appels = []
+    monkeypatch.setattr(migrations, "_ecrire_version", lambda dd, v: appels.append(v))
+    migrations.appliquer(tmp_path)  # déjà à jour → aucune réécriture
+    assert appels == []

@@ -104,11 +104,13 @@ def _exec_git(args: list[str], cwd: Path) -> str:
 def _construire_fichiers(data_chiffre: dict, html: str) -> dict[str, bytes]:
     """Assemble le jeu de fichiers à publier, **indépendamment du transport**
     (git local ou API GitHub). Clé = chemin dans le repo, valeur = contenu.
+
+    Ordre important pour le transport API (PUT un par un, non atomique) :
+    le shell et les assets d'abord, ``data.enc.json`` **en dernier**. Ainsi un
+    échec partiel laisse au pire « anciennes données + shell neuf » (bénin)
+    plutôt que « données neuves + shell ancien » (cache incohérent).
     """
     fichiers: dict[str, bytes] = {
-        "data.enc.json": json.dumps(
-            data_chiffre, indent=2, ensure_ascii=False
-        ).encode("utf-8"),
         "index.html": html.encode("utf-8"),
         # .nojekyll évite le pipeline Jekyll de GitHub Pages
         ".nojekyll": b"",
@@ -124,6 +126,10 @@ def _construire_fichiers(data_chiffre: dict, html: str) -> dict[str, bytes]:
         "__BUILD_ID__", build_id
     )
     fichiers["sw.js"] = sw.encode("utf-8")
+    # Données chiffrées EN DERNIER (cf. docstring).
+    fichiers["data.enc.json"] = json.dumps(
+        data_chiffre, indent=2, ensure_ascii=False
+    ).encode("utf-8")
     return fichiers
 
 
@@ -272,24 +278,27 @@ def _transport_api_github(
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
     }
-    for chemin, contenu in fichiers.items():
+    contenu_b64 = {c: base64.b64encode(b).decode("ascii") for c, b in fichiers.items()}
+    for chemin in fichiers:
         url = base + chemin
-        reponse = session.get(url, headers=entetes, params={"ref": branche}, timeout=30)
-        sha = None
-        if reponse.status_code == 200:
-            sha = reponse.json().get("sha")
-        elif reponse.status_code != 404:
-            raise PublicationAPIErreur(_message_erreur_api(reponse, f"lecture {chemin}"))
+        # Jusqu'à 3 tentatives : un 409/422 vient d'un sha périmé (le HEAD de
+        # branche a bougé entre le GET et le PUT) — on relit le sha et on réessaie.
+        for tentative in range(3):
+            reponse = session.get(url, headers=entetes, params={"ref": branche}, timeout=30)
+            sha = None
+            if reponse.status_code == 200:
+                sha = reponse.json().get("sha")
+            elif reponse.status_code != 404:
+                raise PublicationAPIErreur(_message_erreur_api(reponse, f"lecture {chemin}"))
 
-        corps = {
-            "message": message,
-            "content": base64.b64encode(contenu).decode("ascii"),
-            "branch": branche,
-        }
-        if sha:
-            corps["sha"] = sha
-        rep_put = session.put(url, headers=entetes, json=corps, timeout=30)
-        if rep_put.status_code not in (200, 201):
+            corps = {"message": message, "content": contenu_b64[chemin], "branch": branche}
+            if sha:
+                corps["sha"] = sha
+            rep_put = session.put(url, headers=entetes, json=corps, timeout=30)
+            if rep_put.status_code in (200, 201):
+                break
+            if rep_put.status_code in (409, 422) and tentative < 2:
+                continue  # sha périmé : on relit et on réessaie
             raise PublicationAPIErreur(_message_erreur_api(rep_put, f"écriture {chemin}"))
 
 

@@ -57,6 +57,7 @@ def appliquer(data_dir, *, sauvegarder: Callable[[Path], object] | None = None) 
     migration (jamais si rien à migrer). Renvoie la version finale.
     """
     data_dir = Path(data_dir)
+    meta_present = _chemin_meta(data_dir).exists()
     courante = version_actuelle(data_dir)
     a_appliquer = sorted(
         (v, f) for (v, f) in MIGRATIONS if courante < v <= VERSION_SCHEMA_COURANTE
@@ -66,5 +67,12 @@ def appliquer(data_dir, *, sauvegarder: Callable[[Path], object] | None = None) 
     depot = Depot(data_dir)
     for _version, fonction in a_appliquer:
         fonction(depot)
-    _ecrire_version(data_dir, VERSION_SCHEMA_COURANTE)
-    return VERSION_SCHEMA_COURANTE
+
+    # On n'estampille QUE vers le haut, et seulement si nécessaire :
+    # - jamais en dessous de la version déjà enregistrée (pas de rétrogradation
+    #   si les données viennent d'un .exe plus récent) ;
+    # - pas de réécriture parasite de meta.json à chaque démarrage de régime.
+    cible = max(courante, VERSION_SCHEMA_COURANTE)
+    if not meta_present or a_appliquer or cible != courante:
+        _ecrire_version(data_dir, cible)
+    return version_actuelle(data_dir)
