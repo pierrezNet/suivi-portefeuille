@@ -2,6 +2,12 @@
 
 > **Application web locale en Flask pour tenir le journal de mes investissements sur PEA et CTO Bourse Direct : opérations, plus-values réalisées, thèses long terme, et préparation fiscale.**
 
+> 👋 **Vous êtes un ami à qui Emmanuel a partagé l'application ?**
+> Commencez par **[USAGE_POUR_AMI.md](USAGE_POUR_AMI.md)** (prise en main),
+> **[INSTALL_WINDOWS.md](INSTALL_WINDOWS.md)** (installation du `.exe`) et
+> **[GUIDE_MOBILE_AMI.md](GUIDE_MOBILE_AMI.md)** (consultation mobile). Le reste
+> de ce README est la documentation technique du projet.
+
 ---
 
 ## 🎯 Objectif du projet

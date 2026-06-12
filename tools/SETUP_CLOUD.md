@@ -126,7 +126,7 @@ Ajoute par exemple dans `crontab -e` :
 | Aspect | Mesure |
 |---|---|
 | Algo | AES-256-GCM (chiffrement authentifié) |
-| Dérivation | PBKDF2-SHA256, **200 000 itérations** (~150 ms côté navigateur) |
+| Dérivation | PBKDF2-SHA256, **600 000 itérations** (OWASP) |
 | Sel | 32 bytes aléatoires, régénéré à chaque publication |
 | IV | 12 bytes aléatoires, régénéré à chaque publication |
 | Stockage | Repo public — sans clé, le JSON est opaque |
