@@ -94,7 +94,8 @@ def test_format_paquet_attendu():
     d = paquet.to_dict()
     assert set(d.keys()) == {"v", "salt", "iv", "ct", "iter"}
     assert d["v"] == 1
-    assert d["iter"] == 200000
+    assert d["iter"] == chf.ITERATIONS
+    assert d["iter"] >= 600_000  # durci (OWASP) — rétro-compatible (iter stocké)
     # Tailles binaires attendues (avant base64)
     import base64
     assert len(base64.b64decode(d["salt"])) == 32

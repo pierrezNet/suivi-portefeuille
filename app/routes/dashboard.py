@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import os
+
 from flask import (
     Blueprint,
     current_app,
     flash,
     redirect,
     render_template,
+    request,
     url_for,
 )
 
@@ -29,22 +32,50 @@ def index():
 
 @bp.route("/publier-dashboard", methods=["POST"])
 def publier():
-    """Chiffre les données du dashboard et les pousse vers le repo Git
-    (GitHub Pages). Requiert les env BOURSE_PASSWORD + BOURSE_DASHBOARD_REPO."""
+    """Chiffre les données du dashboard et les publie vers GitHub Pages.
+
+    Deux transports selon la configuration :
+    - **API GitHub** (sans git) si les Réglages contiennent user+repo+token
+      (cas du .exe Windows des amis) ;
+    - **git local** sinon (cas d'Emmanuel sous Linux, via env BOURSE_*).
+
+    Le mot de passe de chiffrement vient du formulaire (champ `mot_passe`) ou,
+    à défaut, de la variable d'environnement BOURSE_PASSWORD.
+    """
     # Import lazy pour ne pas imposer cryptography/git au démarrage de l'app.
-    from tools.publier_dashboard import publier as publier_script
+    from tools.publier_dashboard import publier as publier_git, publier_via_api
+    from app.services import reglages as svc_reglages
+
+    data_dir = current_app.config["DATA_DIR"]
+    reglages = svc_reglages.charger_reglages(data_dir)
+    mot_passe = request.form.get("mot_passe") or os.environ.get("BOURSE_PASSWORD")
 
     try:
-        # data_dir = DATA_DIR runtime : en .exe gelé, c'est le dossier
-        # utilisateur (%LOCALAPPDATA%), pas le bundle en lecture seule.
-        chemin = publier_script(data_dir=current_app.config["DATA_DIR"])
-        taille_data = (chemin.parent / "data.enc.json").stat().st_size
-        flash(
-            f"Dashboard chiffré publié → {chemin.parent} "
-            f"(data.enc.json : {taille_data / 1024:.1f} Ko). "
-            "Git push effectué — vérifie GitHub Pages.",
-            "success",
-        )
+        if svc_reglages.publication_api_configuree(reglages):
+            recap = publier_via_api(
+                data_dir=data_dir,
+                mot_passe=mot_passe,
+                owner=reglages["github_user"],
+                repo=reglages["github_repo"],
+                token=reglages["github_token"],
+                branche=reglages.get("branche") or "main",
+            )
+            flash(
+                f"Dashboard chiffré publié → {recap['url_pages']} "
+                f"(data.enc.json : {recap['taille_data'] / 1024:.1f} Ko). "
+                "Vérifie l'activation de GitHub Pages sur ton dépôt.",
+                "success",
+            )
+        else:
+            # data_dir runtime : en .exe gelé, dossier utilisateur, pas le bundle.
+            chemin = publier_git(data_dir=data_dir, mot_passe=mot_passe)
+            taille_data = (chemin.parent / "data.enc.json").stat().st_size
+            flash(
+                f"Dashboard chiffré publié → {chemin.parent} "
+                f"(data.enc.json : {taille_data / 1024:.1f} Ko). "
+                "Git push effectué — vérifie GitHub Pages.",
+                "success",
+            )
     except Exception as e:
         flash(f"Échec publication : {e}", "error")
     return redirect(url_for("dashboard.index"))

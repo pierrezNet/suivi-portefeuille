@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Réglages — Suivi Portefeuille{% endblock %}
+
+{% block content %}
+<h1>Réglages</h1>
+
+<details class="aide-page" style="margin-bottom:1.5rem">
+  <summary>💡 À quoi sert cette page ?</summary>
+  <div style="margin-top:.6rem">
+    <p class="muted">
+      Le <strong>dashboard mobile</strong> publie une copie <strong>chiffrée</strong>
+      de tes chiffres sur <strong>ton propre dépôt GitHub Pages</strong>, que tu
+      consultes depuis ton smartphone. Tes données restent chez toi : seul un
+      fichier chiffré (illisible sans ta phrase de passe) part sur GitHub.
+    </p>
+    <p class="muted">
+      Renseigne ici une seule fois ton dépôt et un <em>token</em> GitHub. La
+      phrase de passe de chiffrement, elle, n'est jamais stockée : tu la saisis
+      au moment de publier.
+    </p>
+  </div>
+</details>
+
+<form method="post" action="{{ url_for('reglages.enregistrer') }}" class="formulaire" style="max-width:38rem">
+  <h2>Publication mobile (GitHub Pages)</h2>
+
+  <div class="champ">
+    <label for="github_user">Nom d'utilisateur GitHub</label>
+    <input type="text" id="github_user" name="github_user"
+           value="{{ reglages.github_user }}" autocomplete="off"
+           placeholder="ex : monpseudo">
+    <small class="muted">Ton compte GitHub (celui qui héberge le dépôt mobile).</small>
+  </div>
+
+  <div class="champ">
+    <label for="github_repo">Nom du dépôt</label>
+    <input type="text" id="github_repo" name="github_repo"
+           value="{{ reglages.github_repo }}" autocomplete="off"
+           placeholder="ex : portefeuille-dashboard">
+    <small class="muted">
+      Page publiée à
+      <code>https://{{ reglages.github_user or 'TON_USER' }}.github.io/{{ reglages.github_repo or 'TON_REPO' }}/</code>.
+      Choisis un nom <strong>peu devinable</strong> (le fichier chiffré est public).
+    </small>
+  </div>
+
+  <div class="champ">
+    <label for="branche">Branche</label>
+    <input type="text" id="branche" name="branche"
+           value="{{ reglages.branche }}" autocomplete="off" placeholder="main">
+  </div>
+
+  <div class="champ">
+    <label for="github_token">Token GitHub (fine-grained)</label>
+    <input type="password" id="github_token" name="github_token"
+           autocomplete="off"
+           placeholder="{% if token_present %}•••••• (laisser vide pour conserver l'actuel){% else %}ghp_… / github_pat_…{% endif %}">
+    <small class="muted">
+      Token avec la permission <strong>Contents : Read and write</strong> sur
+      ce seul dépôt. Stocké uniquement sur ta machine, jamais publié.
+      {% if token_present %}<br>✅ Un token est déjà enregistré.{% endif %}
+    </small>
+  </div>
+
+  <button type="submit" class="btn">Enregistrer</button>
+  {% if api_configuree %}
+    <p class="muted" style="margin-top:.6rem">
+      ✅ Publication mobile configurée. Publie depuis le
+      <a href="{{ url_for('dashboard.index') }}">tableau de bord</a>.
+    </p>
+  {% endif %}
+</form>
+
+<section style="max-width:38rem;margin-top:2rem">
+  <h2>Phrase de passe de chiffrement</h2>
+  <p class="muted">
+    Elle protège ton dashboard mobile (≥ 15 caractères). Elle n'est
+    <strong>jamais</strong> enregistrée : tu la saisis à chaque publication, et
+    tu la retapes sur ton smartphone à la première consultation. Note-la dans un
+    gestionnaire de mots de passe — <strong>si tu la perds, le cloud devient
+    illisible</strong> (tes données locales, elles, restent intactes).
+  </p>
+  <p class="muted">
+    Suggestion (régénérée à chaque visite) :
+    <code style="user-select:all">{{ suggestion_phrase }}</code>
+  </p>
+</section>
+{% endblock %}

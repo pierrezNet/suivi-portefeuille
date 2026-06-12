@@ -4,7 +4,7 @@ Le contenu chiffré côté Python doit pouvoir être déchiffré côté navigate
 via la WebCrypto API. On utilise donc des primitives strictement
 interopérables :
 
-  - PBKDF2-HMAC-SHA256, 200 000 itérations, sel 32 bytes
+  - PBKDF2-HMAC-SHA256, 600 000 itérations (OWASP), sel 32 bytes
   - AES-256-GCM, IV 12 bytes (96 bits, standard pour GCM)
   - Sortie : dict JSON `{v, salt, iv, ct, iter}` (tout en base64 standard)
 
@@ -26,7 +26,11 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 
 VERSION = 1
-ITERATIONS = 200_000
+# 600 000 itérations PBKDF2-SHA256 (recommandation OWASP). Le nombre est stocké
+# dans le paquet (`iter`) et relu au déchiffrement (Python ET navigateur via
+# cloud_app.js) : augmenter cette valeur reste rétro-compatible avec les
+# dashboards déjà publiés.
+ITERATIONS = 600_000
 TAILLE_SEL = 32
 TAILLE_IV = 12
 TAILLE_CLE = 32  # 256 bits
