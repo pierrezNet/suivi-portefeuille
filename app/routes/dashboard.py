@@ -23,6 +23,13 @@ bp = Blueprint("dashboard", __name__)
 @bp.route("/")
 def index():
     depot = current_app.config["DEPOT"]
+    # Premier lancement (aucun compte) : on guide l'utilisateur plutôt que
+    # d'afficher un dashboard vide. Désactivé en mode TESTING pour ne pas
+    # perturber les tests qui ne seedent pas de compte.
+    from app.services import onboarding
+
+    if onboarding.est_vierge(depot) and not current_app.config.get("TESTING"):
+        return redirect(url_for("comptes.demarrage"))
     data = dashboard_data.construire(depot)
     return render_template(
         "dashboard.html",

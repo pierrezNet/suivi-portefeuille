@@ -148,6 +148,7 @@ def _enregistrer_blueprints(app: Flask) -> None:
     from app.routes.virements_programmes import bp as bp_virements_programmes
     from app.routes.predictions import bp as bp_predictions
     from app.routes.reglages import bp as bp_reglages
+    from app.routes.comptes import bp as bp_comptes
 
     app.register_blueprint(bp_dashboard)
     app.register_blueprint(bp_mouvements)
@@ -159,4 +160,5 @@ def _enregistrer_blueprints(app: Flask) -> None:
     app.register_blueprint(bp_virements_programmes)
     app.register_blueprint(bp_predictions)
     app.register_blueprint(bp_reglages)
+    app.register_blueprint(bp_comptes)
     enregistrer_endpoint_ics(app)

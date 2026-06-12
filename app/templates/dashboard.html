@@ -248,7 +248,8 @@
       {% endfor %}
     {% else %}
       <p class="muted">
-        Aucun compte enregistré. Édite <code>data/comptes.json</code> pour commencer.
+        Aucun compte enregistré.
+        <a href="{{ url_for('comptes.demarrage') }}">Commencer ici →</a>
       </p>
     {% endif %}
 

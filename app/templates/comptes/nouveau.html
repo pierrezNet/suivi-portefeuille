@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Nouveau compte — Suivi Portefeuille{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <h1>Nouveau compte</h1>
+  <p class="muted">
+    Un compte représente une enveloppe chez ton courtier (PEA ou CTO). Le solde
+    cash est recalculé automatiquement à partir de tes mouvements — tu n'as rien
+    à saisir ici de ce côté.
+  </p>
+</section>
+
+<form method="post" action="{{ url_for('comptes.nouveau') }}" class="formulaire" style="max-width:34rem">
+  <label class="champ">
+    <span>Nom du compte *</span>
+    <input type="text" name="nom" value="{{ valeurs.get('nom', '') }}" required
+           placeholder="ex : PEA Bourse Direct">
+    {% if erreurs.get('nom') %}<small class="erreur">{{ erreurs['nom'] }}</small>{% endif %}
+  </label>
+
+  <label class="champ">
+    <span>Type *</span>
+    <select name="type">
+      <option value="">— choisir —</option>
+      <option value="PEA" {% if valeurs.get('type') == 'PEA' %}selected{% endif %}>PEA</option>
+      <option value="CTO" {% if valeurs.get('type') == 'CTO' %}selected{% endif %}>CTO (compte-titres ordinaire)</option>
+    </select>
+    {% if erreurs.get('type') %}<small class="erreur">{{ erreurs['type'] }}</small>{% endif %}
+  </label>
+
+  <label class="champ">
+    <span>Courtier</span>
+    <input type="text" name="broker" value="{{ valeurs.get('broker', '') }}"
+           placeholder="ex : Bourse Direct">
+  </label>
+
+  <label class="champ">
+    <span>Numéro de compte</span>
+    <input type="text" name="numero" value="{{ valeurs.get('numero', '') }}"
+           placeholder="facultatif">
+  </label>
+
+  <label class="champ">
+    <span>Date d'ouverture</span>
+    <input type="date" name="date_ouverture" value="{{ valeurs.get('date_ouverture', '') }}">
+    {% if erreurs.get('date_ouverture') %}<small class="erreur">{{ erreurs['date_ouverture'] }}</small>{% endif %}
+  </label>
+
+  <input type="hidden" name="devise_principale" value="EUR">
+
+  <div style="margin-top:1rem;display:flex;gap:.6rem;flex-wrap:wrap">
+    <button type="submit" class="btn">Créer le compte</button>
+    <a href="{{ url_for('comptes.demarrage') }}" class="btn btn-secondaire">Retour</a>
+  </div>
+</form>
+{% endblock %}

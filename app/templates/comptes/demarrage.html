@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Bienvenue — Suivi Portefeuille{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <h1>👋 Bienvenue dans Suivi Portefeuille</h1>
+  <p class="muted">
+    Ton journal de bord d'investisseur, 100&nbsp;% local. Tes données restent sur
+    ton ordinateur — rien n'est envoyé sur Internet sans ton action.
+  </p>
+</section>
+
+{% if vierge %}
+<div class="bandeau-info">
+  Ton portefeuille est vide pour l'instant. Voici par où commencer 👇
+</div>
+{% endif %}
+
+<ol class="etapes-onboarding" style="display:grid;gap:1rem;padding-left:0;list-style:none;counter-reset:etape">
+  <li style="border-left:4px solid var(--bleu-france);padding:.8rem 1rem;background:#f5f7ff">
+    <h2 style="margin-top:0">1. Crée ton premier compte</h2>
+    <p class="muted">Une enveloppe PEA ou CTO chez ton courtier.</p>
+    <a href="{{ url_for('comptes.nouveau') }}" class="btn">➕ Créer un compte</a>
+  </li>
+  <li style="border-left:4px solid var(--bleu-france);padding:.8rem 1rem;background:#f5f7ff">
+    <h2 style="margin-top:0">2. Importe tes positions <span class="muted">(optionnel)</span></h2>
+    <p class="muted">Charge tes fichiers xlsx Bourse Direct pour récupérer titres et cours en un clic.</p>
+    <a href="{{ url_for('titres.importer_xlsx') }}" class="btn btn-secondaire">📥 Importer un xlsx</a>
+  </li>
+  <li style="border-left:4px solid var(--bleu-france);padding:.8rem 1rem;background:#f5f7ff">
+    <h2 style="margin-top:0">3. Saisis tes mouvements</h2>
+    <p class="muted">Achats, ventes, dividendes, alimentations… au fil de l'eau.</p>
+    <a href="{{ url_for('mouvements.liste') }}" class="btn btn-secondaire">Voir les mouvements</a>
+  </li>
+</ol>
+
+<hr style="margin:2rem 0">
+
+<section>
+  <h2>Juste curieux ?</h2>
+  <p class="muted">
+    Charge un jeu d'exemple <strong>fictif</strong> pour voir l'app remplie
+    (comptes, un titre, quelques mouvements). Les numéros de compte sont factices.
+  </p>
+  <form method="post" action="{{ url_for('comptes.charger_exemple') }}" style="margin:0">
+    <button type="submit" class="btn btn-secondaire">🎬 Charger un jeu d'exemple</button>
+  </form>
+</section>
+
+<p class="muted" style="margin-top:1.5rem">
+  📱 Pour consulter ton portefeuille sur smartphone, configure la publication
+  chiffrée dans <a href="{{ url_for('reglages.index') }}">Réglages</a>.
+</p>
+{% endblock %}
