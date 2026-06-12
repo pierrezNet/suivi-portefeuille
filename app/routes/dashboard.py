@@ -35,7 +35,9 @@ def publier():
     from tools.publier_dashboard import publier as publier_script
 
     try:
-        chemin = publier_script()
+        # data_dir = DATA_DIR runtime : en .exe gelé, c'est le dossier
+        # utilisateur (%LOCALAPPDATA%), pas le bundle en lecture seule.
+        chemin = publier_script(data_dir=current_app.config["DATA_DIR"])
         taille_data = (chemin.parent / "data.enc.json").stat().st_size
         flash(
             f"Dashboard chiffré publié → {chemin.parent} "

@@ -41,7 +41,18 @@ from app.services import chiffrement, dashboard_data
 from app.services.stockage import Depot, DecimalEncoder
 
 
-TEMPLATES = RACINE / "tools" / "templates"
+def _chemin_ressource(rel: str) -> Path:
+    """Résout une ressource embarquée, que l'app tourne depuis les sources ou
+    depuis un bundle PyInstaller gelé.
+
+    En .exe gelé, ``RACINE`` pointe dans le bundle temporaire ``_MEIPASS`` (lecture
+    seule) : on s'y réfère explicitement pour retrouver les templates/assets.
+    """
+    base = Path(getattr(sys, "_MEIPASS", RACINE))
+    return base / rel
+
+
+TEMPLATES = _chemin_ressource("tools/templates")
 
 
 class ConfigManquante(RuntimeError):
@@ -136,6 +147,7 @@ def publier(
     mot_passe: str | None = None,
     branche: str | None = None,
     push: bool | None = None,
+    data_dir: str | Path | None = None,
 ) -> Path:
     """Effectue la publication complète. Renvoie le chemin du fichier HTML écrit."""
     repo_str = repo or os.environ.get("BOURSE_DASHBOARD_REPO")
@@ -163,8 +175,9 @@ def publier(
     if push is None:
         push = os.environ.get("BOURSE_DASHBOARD_NO_PUSH") != "1"
 
-    # 1. Construire les données
-    depot = Depot(RACINE / "data")
+    # 1. Construire les données. DATA_DIR configurable : en .exe gelé, RACINE
+    #    pointe dans le bundle (lecture seule) → on lit le dossier utilisateur.
+    depot = Depot(Path(data_dir) if data_dir else RACINE / "data")
     data = dashboard_data.construire(depot, rattraper_virements=True)
     data = _enrichir_pour_export(data)
 
