@@ -1,10 +1,21 @@
 """Tests du module yahoo : inférence ticker + enrichissement (mocké)."""
 
+import importlib.util
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from app.services import yahoo
+
+
+# yfinance est une dépendance OPTIONNELLE (métadonnées à la création d'un titre),
+# volontairement NON embarquée dans le .exe (offline-first + poids pandas/numpy).
+# Les tests qui patchent yfinance.Ticker exigent que le module soit importable :
+# on les saute proprement quand il est absent (ex. CI / build .exe).
+_sans_yfinance = pytest.mark.skipif(
+    importlib.util.find_spec("yfinance") is None,
+    reason="yfinance non installé (dépendance optionnelle, hors .exe)",
+)
 
 
 # --- inferer_ticker_yahoo --------------------------------------------------
@@ -69,6 +80,7 @@ def _info_mock_ifx() -> dict:
     }
 
 
+@_sans_yfinance
 def test_enrichir_mock_yahoo_extrait_les_bons_champs():
     info = _info_mock_ifx()
     ticker_mock = MagicMock()
@@ -89,6 +101,7 @@ def test_enrichir_mock_yahoo_extrait_les_bons_champs():
     assert fiche["valeur_entreprise_m"] == "101550"
 
 
+@_sans_yfinance
 def test_enrichir_sans_donnees_leve():
     ticker_mock = MagicMock()
     ticker_mock.info = {}
@@ -97,6 +110,7 @@ def test_enrichir_sans_donnees_leve():
             yahoo.enrichir("INCONNU.XX")
 
 
+@_sans_yfinance
 def test_enrichir_sans_dividende():
     info = {
         "longName": "Cloudflare Inc.",

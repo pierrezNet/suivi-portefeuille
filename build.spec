@@ -47,7 +47,10 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    # yfinance/pandas/numpy : dépendance OPTIONNELLE (métadonnées Yahoo), non
+    # embarquée volontairement (offline-first + poids). La feature se dégrade
+    # proprement en son absence (enrichir_pour_titre renvoie None).
+    excludes=["yfinance", "pandas", "numpy"],
     noarchive=False,
 )
 
