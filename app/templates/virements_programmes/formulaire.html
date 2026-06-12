@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Édition' if mode == 'edition' else 'Nouveau' }} programme récurrent{% endblock %}
+
+{% macro champ(label, name, type='text', step=None, placeholder='', required=False) -%}
+  <label class="champ">
+    <span>{{ label }}{% if required %} *{% endif %}</span>
+    <input type="{{ type }}" name="{{ name }}"
+           {% if step %}step="{{ step }}"{% endif %}
+           value="{{ donnees.get(name, '') }}"
+           {% if required %}required{% endif %}
+           placeholder="{{ placeholder }}">
+    {% if erreurs.get(name) %}<small class="erreur">{{ erreurs[name] }}</small>{% endif %}
+  </label>
+{%- endmacro %}
+
+{% block content %}
+<section class="page-header">
+  <h1>{{ 'Modifier le programme récurrent' if mode == 'edition' else 'Nouveau programme récurrent' }}</h1>
+  <p class="muted">
+    Couvre deux cas. <strong>Sans titre</strong> : virement bancaire pur — le rattrapage
+    crée des mouvements <code>alimentation_cash</code>.
+    <strong>Avec un titre</strong> : investissement programmé (DCA) — le rattrapage crée
+    des <em>rappels d'événement</em> à chaque échéance, à compléter ensuite par
+    le mouvement d'achat réel (quantité et prix connus après exécution broker).
+  </p>
+</section>
+
+<form method="post" class="formulaire">
+
+  <label class="champ">
+    <span>Compte *</span>
+    <select name="compte_id" required>
+      <option value=""></option>
+      {% for c in comptes %}
+        <option value="{{ c.id }}" {% if donnees.get('compte_id') == c.id %}selected{% endif %}>
+          {{ c.nom }} ({{ c.type }})
+        </option>
+      {% endfor %}
+    </select>
+    {% if erreurs.get('compte_id') %}<small class="erreur">{{ erreurs['compte_id'] }}</small>{% endif %}
+  </label>
+
+  <label class="champ">
+    <span>Titre (laisser vide pour un virement cash pur)</span>
+    <select name="titre_id">
+      <option value="">— Aucun (alimentation cash) —</option>
+      {% for t in titres %}
+        <option value="{{ t.id }}" {% if donnees.get('titre_id') == t.id %}selected{% endif %}>
+          {{ t.nom }}{% if t.ticker %} ({{ t.ticker }}){% endif %}
+        </option>
+      {% endfor %}
+    </select>
+    <small class="muted">
+      Si renseigné, le programme est traité comme un investissement DCA :
+      rappels d'événement au lieu d'alimentations cash.
+    </small>
+    {% if erreurs.get('titre_id') %}<small class="erreur">{{ erreurs['titre_id'] }}</small>{% endif %}
+  </label>
+
+  {{ champ('Montant (€)', 'montant', type='number', step='0.01', placeholder='100', required=True) }}
+
+  <label class="champ">
+    <span>Périodicité *</span>
+    <select name="periodicite" required>
+      {% set p_actuelle = donnees.get('periodicite', 'mensuel') %}
+      <option value="mensuel"     {% if p_actuelle == 'mensuel' %}selected{% endif %}>Mensuelle</option>
+      <option value="trimestriel" {% if p_actuelle == 'trimestriel' %}selected{% endif %}>Trimestrielle</option>
+      <option value="semestriel"  {% if p_actuelle == 'semestriel' %}selected{% endif %}>Semestrielle</option>
+      <option value="annuel"      {% if p_actuelle == 'annuel' %}selected{% endif %}>Annuelle</option>
+      <option value="one_shot"    {% if p_actuelle == 'one_shot' %}selected{% endif %}>Ponctuelle (one-shot)</option>
+    </select>
+    {% if erreurs.get('periodicite') %}<small class="erreur">{{ erreurs['periodicite'] }}</small>{% endif %}
+  </label>
+
+  <label class="champ">
+    <span>Jour du mois (1-31) *</span>
+    <input type="number" name="jour_du_mois" min="1" max="31" required
+           value="{{ donnees.get('jour_du_mois', '') }}" placeholder="1">
+    <small class="muted">Si le mois est plus court, retombe sur le dernier jour.</small>
+    {% if erreurs.get('jour_du_mois') %}<small class="erreur">{{ erreurs['jour_du_mois'] }}</small>{% endif %}
+  </label>
+
+  {{ champ('Libellé', 'libelle', placeholder='Virement permanent / DCA Amundi…') }}
+  {{ champ('Date de début *', 'date_debut', type='date', required=True) }}
+  {{ champ('Date de fin (optionnelle)', 'date_fin', type='date') }}
+
+  <label class="champ">
+    <span>Statut</span>
+    <select name="actif">
+      <option value="1" {% if donnees.get('actif', True) in (true, '1', 'true', 'on', 'oui') %}selected{% endif %}>Actif</option>
+      <option value="0" {% if donnees.get('actif') in (false, '0', 'false', 'off', 'non') %}selected{% endif %}>Inactif</option>
+    </select>
+  </label>
+
+  <label class="champ champ-large">
+    <span>Notes</span>
+    <textarea name="notes" rows="2" placeholder="Origine du virement, motif…">{{ donnees.get('notes', '') }}</textarea>
+  </label>
+
+  <div class="formulaire-actions">
+    <button type="submit" class="btn btn-primary">
+      {{ 'Enregistrer les modifications' if mode == 'edition' else 'Créer le virement' }}
+    </button>
+    <a href="{{ url_for('virements_programmes.liste') }}" class="btn-link">Annuler</a>
+  </div>
+</form>
+{% endblock %}

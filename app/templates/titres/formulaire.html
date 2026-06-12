@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Édition' if mode == 'edition' else 'Nouveau titre' }}{% endblock %}
+
+{% macro champ(label, name, type='text', placeholder='', required=False) -%}
+  <label class="champ">
+    <span>{{ label }}{% if required %} *{% endif %}</span>
+    <input type="{{ type }}" name="{{ name }}"
+           value="{{ donnees.get(name, '') }}"
+           {% if required %}required{% endif %}
+           placeholder="{{ placeholder }}">
+    {% if erreurs.get(name) %}<small class="erreur">{{ erreurs[name] }}</small>{% endif %}
+  </label>
+{%- endmacro %}
+
+{% macro zone(label, name, placeholder='', rows=3) -%}
+  <label class="champ champ-large">
+    <span>{{ label }}</span>
+    <textarea name="{{ name }}" rows="{{ rows }}" placeholder="{{ placeholder }}">{{ donnees.get(name, '') }}</textarea>
+    {% if erreurs.get(name) %}<small class="erreur">{{ erreurs[name] }}</small>{% endif %}
+  </label>
+{%- endmacro %}
+
+{% block content %}
+<section class="page-header">
+  <h1>{{ 'Modifier le titre' if mode == 'edition' else 'Nouveau titre' }}</h1>
+  <p class="muted">
+    {% if mode == 'edition' %}
+      Toute modification de la thèse, des perspectives ou des signaux sera enregistrée
+      dans l'historique pour conserver l'évolution de la pensée.
+    {% else %}
+      Saisis au minimum le ticker et le nom. Le reste peut être complété plus tard.
+    {% endif %}
+  </p>
+</section>
+
+<form method="post" class="formulaire">
+  {{ champ('Ticker', 'ticker', placeholder='STMPA', required=True) }}
+  {{ champ('Nom complet', 'nom', placeholder='STMicroelectronics N.V.', required=True) }}
+  {{ champ('ISIN', 'isin', placeholder='NL0000226223') }}
+  {{ champ('Marché', 'marche', placeholder='Euronext Paris') }}
+  {{ champ('Devise', 'devise', placeholder='EUR') }}
+  {{ champ('Secteur', 'secteur', placeholder='Semi-conducteurs') }}
+  {{ champ('Site investisseurs', 'site_ir', type='url', placeholder='https://') }}
+  {{ champ('Horizon', 'horizon', placeholder='5-10 ans') }}
+  {{ champ('Ticker Yahoo (optionnel — override de l\'inférence)', 'ticker_yahoo', placeholder='CW8.PA · IFX.DE · NET — laisser vide pour auto') }}
+
+  <label class="champ">
+    <span>Verse un dividende</span>
+    <select name="verse_dividende">
+      <option value=""></option>
+      <option value="oui" {% if donnees.get('verse_dividende') in (true, 'true', 'oui') %}selected{% endif %}>Oui</option>
+      <option value="non" {% if donnees.get('verse_dividende') in (false, 'false', 'non') %}selected{% endif %}>Non</option>
+    </select>
+  </label>
+
+  {{ champ('Fréquence dividende', 'frequence_dividende', placeholder='trimestriel / annuel') }}
+  {{ champ('Dividende / action', 'dividende_par_action', type='number', placeholder='0.36') }}
+  {{ champ('Cap. boursière (M)', 'cap_boursiere_m', type='number') }}
+  {{ champ('Dette nette (M)', 'dette_nette_m', type='number') }}
+  {{ champ('Valeur d\'entreprise (M)', 'valeur_entreprise_m', type='number') }}
+
+  {{ zone('Thèse long terme — vision, objectifs, conditions de sortie', 'these_lt',
+         placeholder='Pourquoi je détiens ce titre sur 5-10 ans (avantage compétitif, exposition, conviction). Où je vois ce titre dans 5 ans. Qu\'est-ce qui me ferait sortir.',
+         rows=6) }}
+  {{ zone('Signaux moyen terme à surveiller — positifs', 'signaux_mt_positifs',
+         placeholder='Drapeaux théoriques qui renforceraient la thèse (ex : « si NRR > 120 % »). Constats datés → journal de bord.', rows=3) }}
+  {{ zone('Signaux moyen terme à surveiller — négatifs', 'signaux_mt_negatifs',
+         placeholder='Drapeaux théoriques qui invalideraient la thèse (ex : « si payout > 100 % »). Constats datés → journal de bord.', rows=3) }}
+
+  <div class="formulaire-actions">
+    <button type="submit" class="btn btn-primary">
+      {{ 'Enregistrer les modifications' if mode == 'edition' else 'Créer le titre' }}
+    </button>
+    {% if mode == 'edition' %}
+      <a href="{{ url_for('titres.detail', titre_id=titre_id) }}" class="btn-link">Annuler</a>
+    {% else %}
+      <a href="{{ url_for('titres.liste') }}" class="btn-link">Annuler</a>
+    {% endif %}
+  </div>
+</form>
+{% endblock %}

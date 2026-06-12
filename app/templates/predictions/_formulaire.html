@@ -1,0 +1,106 @@
+{# Partial : formulaire de prédiction.
+   Attend dans le contexte : donnees, erreurs, titres, sens_choix,
+                             action_url, bouton_label, annuler_url. #}
+
+{% macro champ(label, name, type='text', placeholder='', required=False, valeur=none) -%}
+  <label class="champ">
+    <span>{{ label }}{% if required %} *{% endif %}</span>
+    <input type="{{ type }}" name="{{ name }}"
+           value="{{ valeur if valeur is not none else donnees.get(name, '') }}"
+           {% if required %}required{% endif %}
+           placeholder="{{ placeholder }}">
+    {% if erreurs.get(name) %}<small class="erreur">{{ erreurs[name] }}</small>{% endif %}
+  </label>
+{%- endmacro %}
+
+{% macro zone(label, name, placeholder='', rows=3) -%}
+  <label class="champ champ-large">
+    <span>{{ label }}</span>
+    <textarea name="{{ name }}" rows="{{ rows }}" placeholder="{{ placeholder }}">{{ donnees.get(name, '') }}</textarea>
+    {% if erreurs.get(name) %}<small class="erreur">{{ erreurs[name] }}</small>{% endif %}
+  </label>
+{%- endmacro %}
+
+<form method="post" action="{{ action_url }}" class="formulaire">
+
+  <label class="champ">
+    <span>Titre du catalogue (optionnel)</span>
+    <select name="titre_id" id="select-titre">
+      <option value="">— Saisie libre —</option>
+      {% for t in titres %}
+        <option value="{{ t.id }}"
+                data-ticker="{{ t.ticker }}"
+                data-nom="{{ t.nom }}"
+                data-devise="{{ t.devise or 'EUR' }}"
+                {% if donnees.get('titre_id') == t.id %}selected{% endif %}>
+          {{ t.ticker }} — {{ t.nom }}
+        </option>
+      {% endfor %}
+    </select>
+    {% if erreurs.get('titre_id') %}<small class="erreur">{{ erreurs['titre_id'] }}</small>{% endif %}
+    <small class="muted">Sélectionne un titre pour auto-remplir ticker / nom / devise, ou laisse vide et saisis-les à la main.</small>
+  </label>
+
+  {{ champ('Ticker', 'ticker', placeholder='STMPA', required=True) }}
+  {{ champ('Nom', 'nom', placeholder='STMicroelectronics N.V.', required=True) }}
+  {{ champ('Devise', 'devise', placeholder='EUR', required=True) }}
+
+  <label class="champ">
+    <span>Sens *</span>
+    <select name="sens" required>
+      <option value=""></option>
+      {% for k, lbl in sens_choix.items() %}
+        <option value="{{ k }}" {% if donnees.get('sens') == k %}selected{% endif %}>{{ lbl }}</option>
+      {% endfor %}
+    </select>
+    {% if erreurs.get('sens') %}<small class="erreur">{{ erreurs['sens'] }}</small>{% endif %}
+  </label>
+
+  {{ champ('Date de la prédiction', 'date_prediction', type='date',
+           valeur=donnees.get('date_prediction') or now_date().isoformat(), required=True) }}
+  {{ champ('Date cible (échéance)', 'date_echeance', type='date', required=True) }}
+  {{ champ('Cours de référence', 'cours_reference', placeholder='38.72', required=True) }}
+
+  <label class="champ">
+    <span>Conviction (1 à 5) *</span>
+    <select name="conviction" required>
+      <option value=""></option>
+      {% for c in [1, 2, 3, 4, 5] %}
+        <option value="{{ c }}"
+                {% if donnees.get('conviction')|string == c|string %}selected{% endif %}>
+          {{ c }}
+        </option>
+      {% endfor %}
+    </select>
+    {% if erreurs.get('conviction') %}<small class="erreur">{{ erreurs['conviction'] }}</small>{% endif %}
+  </label>
+
+  {{ zone('Raisonnement', 'raisonnement',
+          placeholder='Pourquoi je pense que ce titre va monter / baisser sur cet horizon. Quelles seraient les preuves contraires.',
+          rows=5) }}
+
+  <div class="formulaire-actions">
+    <button type="submit" class="btn btn-primary">{{ bouton_label }}</button>
+    <a href="{{ annuler_url }}" class="btn-link">Annuler</a>
+  </div>
+</form>
+
+<script>
+  (function() {
+    const select = document.getElementById('select-titre');
+    if (!select) return;
+    select.addEventListener('change', function() {
+      const opt = select.options[select.selectedIndex];
+      if (!opt || !opt.value) return;
+      const champs = {
+        ticker: opt.dataset.ticker,
+        nom: opt.dataset.nom,
+        devise: opt.dataset.devise,
+      };
+      for (const [name, val] of Object.entries(champs)) {
+        const input = document.querySelector(`input[name="${name}"]`);
+        if (input && !input.value && val) input.value = val;
+      }
+    });
+  })();
+</script>

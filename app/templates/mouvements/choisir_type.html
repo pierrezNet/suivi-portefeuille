@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Nouveau mouvement — Suivi Portefeuille{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <h1>Nouveau mouvement</h1>
+  <p class="muted">Choisis le type d'opération à enregistrer.</p>
+</section>
+
+<div class="grille-types">
+  <a class="carte-type" href="{{ url_for('mouvements.creer', type_mouvement='alimentation_cash') }}">
+    <span class="pill pill-alimentation_cash">Cash</span>
+    <h2>Alimentation</h2>
+    <p>Virement entrant sur un compte (PEA / CTO).</p>
+  </a>
+  <a class="carte-type" href="{{ url_for('mouvements.creer', type_mouvement='retrait_cash') }}">
+    <span class="pill pill-retrait_cash">Cash</span>
+    <h2>Retrait</h2>
+    <p>Virement sortant vers compte bancaire.</p>
+  </a>
+  <a class="carte-type" href="{{ url_for('mouvements.creer', type_mouvement='achat') }}">
+    <span class="pill pill-achat">Titre</span>
+    <h2>Achat</h2>
+    <p>Acquisition d'un titre coté ou ETF.</p>
+  </a>
+  <a class="carte-type" href="{{ url_for('mouvements.creer', type_mouvement='vente') }}">
+    <span class="pill pill-vente">Titre</span>
+    <h2>Vente</h2>
+    <p>Cession d'un titre. Calcul FIFO automatique.</p>
+  </a>
+  <a class="carte-type" href="{{ url_for('mouvements.creer', type_mouvement='dividende_recu') }}">
+    <span class="pill pill-dividende_recu">Revenu</span>
+    <h2>Dividende reçu</h2>
+    <p>Crédit de coupon (avec acompte ou solde).</p>
+  </a>
+</div>
+
+<p><a href="{{ url_for('mouvements.liste') }}" class="btn-link">← Retour à la liste</a></p>
+{% endblock %}

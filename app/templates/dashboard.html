@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+
+{% block title %}Tableau de bord — Suivi Portefeuille{% endblock %}
+
+{% block content %}
+<section class="dashboard-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+  <div>
+    <h1>Tableau de bord</h1>
+    <p class="muted">
+      Vue d'ensemble des comptes, soldes cash recalculés et positions courantes.
+      Valorisation au jour J basée sur les cours importés (xlsx Bourse Direct).
+    </p>
+  </div>
+  <form method="post" action="{{ url_for('dashboard.publier') }}" style="margin:0">
+    <button type="submit" class="btn" title="Génère le HTML mobile autonome dans le dossier configuré (kDrive, etc.)">
+      📱 Publier vers mobile
+    </button>
+  </form>
+</section>
+
+{% if cours_a_actualiser %}
+<div class="bandeau-info" style="background:#fff8e1;border-left:4px solid var(--jaune)">
+  ⚠️
+  {% if nb_positions_sans_cours > 0 %}
+    {{ nb_positions_sans_cours }} position{% if nb_positions_sans_cours > 1 %}s{% endif %}
+    sans cours du jour.
+  {% endif %}
+  {% if age_cours_max_jours and age_cours_max_jours > 7 %}
+    Cours le plus ancien date d'il y a <strong>{{ age_cours_max_jours }} jours</strong>.
+  {% endif %}
+  <a href="{{ url_for('titres.importer_xlsx') }}">Actualiser via import xlsx →</a>
+</div>
+{% endif %}
+
+{% if virements_rattrapes %}
+<div class="bandeau-info">
+  💸 {{ virements_rattrapes|length }} virement{% if virements_rattrapes|length > 1 %}s{% endif %} programmé{% if virements_rattrapes|length > 1 %}s{% endif %}
+  ajouté{% if virements_rattrapes|length > 1 %}s{% endif %} automatiquement :
+  {% for v in virements_rattrapes %}
+    {{ v.montant }} € le {{ v.date|date_fr }}{% if not loop.last %}, {% endif %}
+  {% endfor %}.
+  <a href="{{ url_for('virements_programmes.liste') }}">Gérer les programmations →</a>
+</div>
+{% endif %}
+
+{% set camembert_labels = {'compte': 'Par compte', 'secteur': 'Par secteur', 'devise': 'Par devise'} %}
+
+<div class="grille-2cols">
+<div>
+
+<nav class="tabs-dashboard" role="tablist" aria-label="Vue du portefeuille">
+  <button type="button" role="tab" data-onglet="chiffres" class="actif">📊 Portefeuille en chiffres</button>
+  <button type="button" role="tab" data-onglet="graphiques">📈 Portefeuille en graphiques</button>
+</nav>
+
+<div class="dashboard-corps">
+
+{# --- Onglet GRAPHIQUES : camemberts + courbe d'équity --- #}
+<div class="onglet" data-onglet="graphiques">
+{% if total_valo_titres and total_valo_titres > 0 %}
+<section class="bloc-camemberts">
+  {% for axe, libelle in camembert_labels.items() %}
+    {% set c = coords_camemberts[axe] %}
+    {% set parts = repartitions[axe] %}
+    {% if not c.vide %}
+    <div class="camembert-bloc">
+      <h3>{{ libelle }}</h3>
+      <svg viewBox="0 0 {{ c.taille }} {{ c.taille }}" xmlns="http://www.w3.org/2000/svg"
+           class="camembert-svg" role="img" aria-label="Répartition {{ libelle|lower }}">
+        {% for s in c.slices %}
+          {% if s.circle %}
+            <circle cx="{{ c.cx }}" cy="{{ c.cy }}" r="{{ c.rayon }}" fill="{{ s.couleur }}"/>
+          {% else %}
+            <path d="{{ s.path }}" fill="{{ s.couleur }}" stroke="#fff" stroke-width="1"/>
+          {% endif %}
+        {% endfor %}
+      </svg>
+      <ul class="camembert-legende">
+        {% for s in c.slices %}
+          {% set p = parts[loop.index0] %}
+          <li>
+            <span class="puce" style="background:{{ s.couleur }}"></span>
+            <span class="lbl">{{ p.label }}</span>
+            <span class="pct">{{ p.pourcentage }} %</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if equity_points and equity_points|length >= 2 %}
+<section class="bloc-equity">
+  <header class="bloc-equity-header">
+    <h2>Évolution du portefeuille</h2>
+    <span class="muted">
+      {{ equity_points|length }} mois · de
+      {{ equity_coords.premier|euros }} à <strong>{{ equity_coords.dernier|euros }}</strong>
+    </span>
+  </header>
+  <svg viewBox="0 0 {{ equity_coords.largeur }} {{ equity_coords.hauteur }}"
+       xmlns="http://www.w3.org/2000/svg" class="equity-svg" role="img"
+       aria-label="Évolution mensuelle du portefeuille">
+    {# Cadre #}
+    <line x1="{{ equity_coords.marge }}" y1="{{ equity_coords.hauteur - equity_coords.marge }}"
+          x2="{{ equity_coords.largeur - equity_coords.marge }}" y2="{{ equity_coords.hauteur - equity_coords.marge }}"
+          stroke="#ddd" stroke-width="1"/>
+    {# Polyline #}
+    <polyline fill="none" stroke="var(--bleu-france)" stroke-width="2"
+              points="{{ equity_coords.polyline }}"/>
+    {# Min/max labels Y #}
+    <text x="{{ equity_coords.largeur - 4 }}" y="{{ equity_coords.marge + 4 }}"
+          text-anchor="end" font-size="10" fill="#666">{{ equity_coords.max|euros }}</text>
+    <text x="{{ equity_coords.largeur - 4 }}" y="{{ equity_coords.hauteur - equity_coords.marge - 4 }}"
+          text-anchor="end" font-size="10" fill="#666">{{ equity_coords.min|euros }}</text>
+    {# Labels X (mois) — un sur 2 ou 3 si beaucoup #}
+    {% set pas = (equity_coords.labels_x|length / 6)|round(0, 'ceil')|int %}
+    {% if pas < 1 %}{% set pas = 1 %}{% endif %}
+    {% for lbl in equity_coords.labels_x %}
+      {% if loop.index0 % pas == 0 or loop.last %}
+        <text x="{{ lbl.x }}" y="{{ equity_coords.hauteur - 6 }}"
+              text-anchor="middle" font-size="10" fill="#666">{{ lbl.texte }}</text>
+      {% endif %}
+    {% endfor %}
+  </svg>
+  <p class="muted bloc-equity-foot">
+    Mis à jour à chaque import xlsx. Un point par mois (dernier snapshot connu).
+  </p>
+</section>
+{% endif %}
+{% if (not total_valo_titres or total_valo_titres <= 0) and (not equity_points or equity_points|length < 2) %}
+<p class="muted" style="text-align:center;padding:2rem">
+  Pas encore de données graphiques. Importe un xlsx Bourse Direct pour voir tes camemberts d'allocation,
+  et reviens dans un mois pour la première courbe d'évolution.
+</p>
+{% endif %}
+</div>
+
+{# --- Onglet CHIFFRES : KPI + comptes --- #}
+<div class="onglet actif" data-onglet="chiffres">
+<section class="kpis">
+  <div class="kpi">
+    <span class="kpi-label">Portefeuille total</span>
+    <span class="kpi-value">{{ total_portefeuille|euros }}</span>
+    <span class="kpi-detail muted">
+      {{ total_cash|euros }} cash · {{ total_valo_titres|euros }} titres
+    </span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">PV latente</span>
+    <span class="kpi-value {% if total_pv_latente > 0 %}pv-positive{% elif total_pv_latente < 0 %}pv-negative{% endif %}">
+      {{ total_pv_latente|euros }}
+    </span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Investi {{ annee_courante }}</span>
+    <span class="kpi-value">{{ stats_annee.montant_investi|euros }}</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">PV réalisées {{ annee_courante }}</span>
+    <span class="kpi-value {% if stats_annee.plus_values_realisees > 0 %}pv-positive{% elif stats_annee.plus_values_realisees < 0 %}pv-negative{% endif %}">
+      {{ stats_annee.plus_values_realisees|euros }}
+    </span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Dividendes {{ annee_courante }}</span>
+    <span class="kpi-value">{{ stats_annee.dividendes_recus_eur|euros }}</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Frais {{ annee_courante }}</span>
+    <span class="kpi-value">{{ stats_annee.frais_courtage_total|euros }}</span>
+  </div>
+</section>
+
+{% if comptes %}
+  {% for vue in comptes %}
+    <section class="compte-card">
+          <header class="compte-card-header">
+            <div>
+              <h2>{{ vue.compte.nom }}</h2>
+              <span class="badge badge-{{ vue.compte.type|lower }}">{{ vue.compte.type }}</span>
+              <span class="muted">{{ vue.compte.broker }} · n° {{ vue.compte.numero }}</span>
+            </div>
+            <div class="compte-solde">
+              <span class="muted">Total {{ vue.total_eur|euros }}</span>
+              <small class="muted">
+                {{ vue.solde_cash|euros }} cash
+                {% if vue.valo_titres_eur > 0 %}
+                  · {{ vue.valo_titres_eur|euros }} titres
+                {% endif %}
+              </small>
+              {% if vue.pv_latente_eur != 0 %}
+                <span class="{% if vue.pv_latente_eur > 0 %}pv-positive{% else %}pv-negative{% endif %}">
+                  PV latente {{ vue.pv_latente_eur|euros }}
+                </span>
+              {% endif %}
+            </div>
+          </header>
+
+          {% if vue.positions %}
+            <table class="table-positions">
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  <th>Nom</th>
+                  <th class="num">Quantité</th>
+                  <th class="num">PRU</th>
+                  <th class="num">Cours</th>
+                  <th class="num">Valo</th>
+                  <th class="num">PV latente</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in vue.positions %}
+                  <tr>
+                    <td>
+                      <a href="{{ url_for('titres.detail', titre_id=p.titre_id) }}"><code>{{ p.ticker }}</code></a>
+                    </td>
+                    <td>{{ p.nom }}</td>
+                    <td class="num">{{ p.quantite|quantite }}</td>
+                    <td class="num">{{ p.pru|euros if p.pru else '—' }}</td>
+                    <td class="num">{{ p.cours_jour_eur|euros if p.cours_jour_eur else '—' }}</td>
+                    <td class="num">{{ p.valo_eur|euros if p.valo_eur is not none else '—' }}</td>
+                    <td class="num">
+                      {% if p.pv_latente_eur is not none %}
+                        <span class="{% if p.pv_latente_eur > 0 %}pv-positive{% elif p.pv_latente_eur < 0 %}pv-negative{% endif %}">
+                          {{ p.pv_latente_eur|euros }}
+                        </span>
+                      {% else %}
+                        —
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <p class="muted">Aucune position en cours sur ce compte.</p>
+          {% endif %}
+        </section>
+      {% endfor %}
+    {% else %}
+      <p class="muted">
+        Aucun compte enregistré. Édite <code>data/comptes.json</code> pour commencer.
+      </p>
+    {% endif %}
+
+</div>{# /onglet chiffres #}
+
+</div>{# /dashboard-corps #}
+</div>{# /col1 grille-2cols #}
+
+<aside>{# col2 grille — toujours visible quel que soit l'onglet sélectionné #}
+    {# Agenda à venir #}
+    <section class="bloc">
+      <h2>📅 Agenda — {{ agenda_horizon_jours }} prochains jours</h2>
+      {% if agenda %}
+        <ul class="agenda">
+          {% for item in agenda %}
+            {% set jours_restants = item.date|jours_avant %}
+            <li class="agenda-item agenda-{{ item.kind }}">
+              <div class="agenda-date">
+                <strong>{{ item.date|date_fr }}</strong>
+                <small class="muted">
+                  {% if jours_restants == 0 %}aujourd'hui
+                  {% elif jours_restants == 1 %}demain
+                  {% elif jours_restants > 0 %}dans {{ jours_restants }} j
+                  {% else %}{{ -jours_restants }} j passé(s){% endif %}
+                </small>
+              </div>
+              <div>
+                <span class="agenda-type">{{ item.type_libelle }}</span>
+                {% if item.ticker %}<code>{{ item.ticker }}</code>{% endif %}
+                <div>{{ item.libelle }}</div>
+                {% if item.notes %}<small class="muted">{{ item.notes }}</small>{% endif %}
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+        <p class="muted">
+          Abonnement calendrier : <a href="{{ url_for('calendrier_ics') }}"><code>calendrier.ics</code></a>
+        </p>
+      {% else %}
+        <p class="muted">Rien dans les {{ agenda_horizon_jours }} prochains jours.</p>
+      {% endif %}
+    </section>
+
+    {# Watchlist priorité haute #}
+    <section class="bloc">
+      <h2>🎯 Watchlist — priorité haute</h2>
+      {% if watchlist_haute %}
+        <ul class="watchlist-aside">
+          {% for w in watchlist_haute %}
+            <li>
+              <a href="{{ url_for('watchlist.editer', watch_id=w.id) }}">
+                {% if w.ticker %}<code>{{ w.ticker }}</code>{% endif %}
+                <strong>{{ w.nom or w.ticker }}</strong>
+              </a>
+              {% if w.these_lt %}<small class="muted">{{ w.these_lt|truncate(80) }}</small>{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+        <p><a class="btn-link" href="{{ url_for('watchlist.liste') }}">Toute la watchlist →</a></p>
+      {% else %}
+        <p class="muted">Aucun élément en priorité haute.</p>
+      {% endif %}
+    </section>
+  </aside>
+
+</div>{# /grille-2cols englobante #}
+{% endblock %}

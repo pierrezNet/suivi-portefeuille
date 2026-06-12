@@ -1,0 +1,52 @@
+name: Build Windows .exe
+
+# Construit l'exécutable Windows autonome distribué aux amis.
+# - workflow_dispatch : build à la demande (onglet Actions → Run workflow).
+# - tag v* : build + attache le zip à une release GitHub.
+#
+# PyInstaller ne cross-compile pas : ce build DOIT tourner sur Windows.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write  # nécessaire pour attacher le zip à la release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installer les dépendances (runtime + build)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-build.txt
+
+      - name: Lancer les tests (valide les chemins sous Windows)
+        run: python -m pytest -q
+
+      - name: Construire le .exe
+        run: pyinstaller build.spec --noconfirm
+
+      - name: Zipper le dossier de distribution
+        run: Compress-Archive -Path dist/Suivi-Portefeuille/* -DestinationPath dist/Suivi-Portefeuille-windows.zip
+
+      - name: Publier l'artifact (téléchargeable depuis l'onglet Actions)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Suivi-Portefeuille-windows
+          path: dist/Suivi-Portefeuille-windows.zip
+
+      - name: Attacher à la release (si déclenché par un tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/Suivi-Portefeuille-windows.zip

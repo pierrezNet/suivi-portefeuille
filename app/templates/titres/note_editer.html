@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Édition note — {{ titre.ticker }}{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>Modifier une note de journal</h1>
+    <p class="muted">
+      Sur <a href="{{ url_for('titres.detail', titre_id=titre.id) }}"><code>{{ titre.ticker }}</code> {{ titre.nom }}</a>.
+    </p>
+  </div>
+</section>
+
+<form method="post" class="formulaire">
+  <label class="champ">
+    <span>Date *</span>
+    <input type="date" name="date" required value="{{ donnees.get('date', '') }}">
+    {% if erreurs.get('date') %}<small class="erreur">{{ erreurs['date'] }}</small>{% endif %}
+  </label>
+
+  <label class="champ">
+    <span>Type *</span>
+    <select name="type" required>
+      {% for code, libelle in types.items() %}
+        <option value="{{ code }}" {% if donnees.get('type') == code %}selected{% endif %}>{{ libelle }}</option>
+      {% endfor %}
+    </select>
+    {% if erreurs.get('type') %}<small class="erreur">{{ erreurs['type'] }}</small>{% endif %}
+  </label>
+
+  <label class="champ">
+    <span>Événement déclencheur (optionnel)</span>
+    <select name="evenement_id">
+      <option value="">—</option>
+      {% for e in evenements %}
+        <option value="{{ e.id }}" {% if donnees.get('evenement_id') == e.id %}selected{% endif %}>
+          {{ e.date|date_fr }} — {{ e.libelle }}
+        </option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label class="champ champ-large">
+    <span>Titre court *</span>
+    <input type="text" name="titre_court" required maxlength="120"
+           value="{{ donnees.get('titre_court', '') }}"
+           placeholder="Annonce licenciement 20% effectifs">
+    {% if erreurs.get('titre_court') %}<small class="erreur">{{ erreurs['titre_court'] }}</small>{% endif %}
+  </label>
+
+  <label class="champ champ-large">
+    <span>Contenu *</span>
+    <textarea name="contenu" rows="10" required>{{ donnees.get('contenu', '') }}</textarea>
+    {% if erreurs.get('contenu') %}<small class="erreur">{{ erreurs['contenu'] }}</small>{% endif %}
+  </label>
+
+  <div class="formulaire-actions">
+    <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+    <a href="{{ url_for('titres.detail', titre_id=titre.id) }}" class="btn-link">Annuler</a>
+  </div>
+</form>
+{% endblock %}

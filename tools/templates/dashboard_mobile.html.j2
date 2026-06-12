@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#000091">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Suivi Portefeuille — mobile</title>
+    <style>{{ css_inline|safe }}</style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container">
+        <h1>💼 Suivi Portefeuille</h1>
+        <small id="genere-le">Synchronisé le {{ genere_le_fr }}</small>
+      </div>
+    </header>
+    <main class="container" id="app">
+      <p>Chargement…</p>
+    </main>
+    <footer class="bas-page">
+      <div class="container">
+        <small>Lecture seule · Données figées au {{ genere_le_fr }} · 100&nbsp;% local</small>
+      </div>
+    </footer>
+    <script id="dashboard-data" type="application/json">{{ dashboard_data_json|safe }}</script>
+    <script>{{ js_inline|safe }}</script>
+  </body>
+</html>

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Édition' if mode == 'edition' else 'Nouvel événement' }}{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <h1>{{ 'Modifier l\'événement' if mode == 'edition' else 'Nouvel événement' }}</h1>
+  <p class="muted">L'événement apparaîtra dans le calendrier ICS.</p>
+</section>
+
+<form method="post" class="formulaire">
+  <label class="champ">
+    <span>Date *</span>
+    <input type="date" name="date" value="{{ donnees.get('date', '') }}" required>
+    {% if erreurs.get('date') %}<small class="erreur">{{ erreurs['date'] }}</small>{% endif %}
+  </label>
+
+  <label class="champ">
+    <span>Type *</span>
+    <select name="type" required>
+      {% for code, libelle in types.items() %}
+        <option value="{{ code }}" {% if donnees.get('type', 'autre') == code %}selected{% endif %}>{{ libelle }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label class="champ">
+    <span>Titre lié</span>
+    <select name="titre_id">
+      <option value=""></option>
+      {% for t in titres %}
+        <option value="{{ t.id }}" {% if donnees.get('titre_id') == t.id %}selected{% endif %}>
+          {{ t.ticker }} — {{ t.nom }}
+        </option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label class="champ champ-large">
+    <span>Libellé *</span>
+    <input type="text" name="libelle" value="{{ donnees.get('libelle', '') }}"
+           placeholder="Résultats T1 2026" required>
+    {% if erreurs.get('libelle') %}<small class="erreur">{{ erreurs['libelle'] }}</small>{% endif %}
+  </label>
+
+  <label class="champ champ-large">
+    <span>Notes</span>
+    <textarea name="notes" rows="3" placeholder="Points à surveiller, déclencheurs, contexte…">{{ donnees.get('notes', '') }}</textarea>
+  </label>
+
+  <div class="formulaire-actions">
+    <button type="submit" class="btn btn-primary">
+      {{ 'Enregistrer les modifications' if mode == 'edition' else 'Créer l\'événement' }}
+    </button>
+    <a href="{{ url_for('evenements.liste') }}" class="btn-link">Annuler</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Édition' if mode == 'edition' else 'Nouveau' }} — {{ libelle_type }}{% endblock %}
+
+{% macro champ(label, name, type='text', step=None, required=False, placeholder='') -%}
+  <label class="champ">
+    <span>{{ label }}{% if required %} *{% endif %}</span>
+    <input type="{{ type }}" name="{{ name }}"
+           {% if step %}step="{{ step }}"{% endif %}
+           value="{{ donnees.get(name, '') }}"
+           {% if required %}required{% endif %}
+           placeholder="{{ placeholder }}">
+    {% if erreurs.get(name) %}<small class="erreur">{{ erreurs[name] }}</small>{% endif %}
+  </label>
+{%- endmacro %}
+
+{% block content %}
+{% if source_ordre_watch_id and source_ordre_id and source_watch %}
+  <div class="bandeau-info">
+    📋 Création depuis l'<strong>ordre actif</strong>
+    {% if source_watch.ticker %}<code>{{ source_watch.ticker }}</code>{% endif %}
+    {{ source_watch.nom }}.
+    Ajuste les <strong>frais</strong> et la <strong>date d'exécution</strong> réelle si nécessaire,
+    puis Enregistre.
+    L'ordre passera automatiquement en statut <em>exécuté</em>.
+  </div>
+{% endif %}
+{% if source_evenement_id and source_evenement %}
+  <div class="bandeau-info">
+    📅 Création depuis le <strong>rappel DCA</strong> du {{ source_evenement.date|date_fr }}
+    — <em>{{ source_evenement.libelle }}</em>.
+    {% if donnees.get('montant_cible') %}
+      Montant cible <strong>{{ donnees.get('montant_cible') }} €</strong> — saisis la
+      quantité et le prix unitaire réels du relevé broker.
+    {% else %}
+      Saisis la quantité et le prix unitaire réels du relevé broker.
+    {% endif %}
+    Le rappel sera marqué <em>honoré</em>.
+  </div>
+{% endif %}
+<section class="page-header">
+  <h1>{{ 'Modifier' if mode == 'edition' else 'Nouveau' }} — {{ libelle_type }}</h1>
+  <p class="muted">
+    {% if type_mouvement == 'vente' %}
+      La quantité doit être disponible en portefeuille (FIFO sur les achats antérieurs).
+      Le prix unitaire est en <strong>EUR</strong> (encaissé par le broker).
+    {% elif type_mouvement == 'achat' %}
+      Saisir le <strong>prix unitaire en EUR</strong> tel que facturé par le broker.
+      Pour un titre en USD, c'est la valeur déjà convertie. <code>devise</code> et <code>taux_change</code> sont informatifs (traçabilité).
+    {% elif type_mouvement == 'dividende_recu' %}
+      Renseigner le montant brut total et, si possible, le montant net en EUR effectivement crédité.
+    {% else %}
+      Le solde cash du compte sera recalculé.
+    {% endif %}
+  </p>
+</section>
+
+<form method="post" class="formulaire">
+
+  <label class="champ">
+    <span>Compte *</span>
+    <select name="compte_id" required>
+      <option value=""></option>
+      {% for c in comptes %}
+        <option value="{{ c.id }}" {% if donnees.get('compte_id') == c.id %}selected{% endif %}>
+          {{ c.nom }} ({{ c.type }})
+        </option>
+      {% endfor %}
+    </select>
+    {% if erreurs.get('compte_id') %}<small class="erreur">{{ erreurs['compte_id'] }}</small>{% endif %}
+  </label>
+
+  {{ champ('Date', 'date', type='date', required=True) }}
+
+  {% if type_mouvement in ('alimentation_cash', 'retrait_cash') %}
+    {{ champ('Montant (€)', 'montant', type='number', step='0.01', required=True) }}
+    {{ champ('Libellé', 'libelle', placeholder='Virement permanent mensuel') }}
+
+  {% elif type_mouvement in ('achat', 'vente', 'dividende_recu') %}
+    <label class="champ">
+      <span>Titre *</span>
+      <select name="titre_id" required>
+        <option value=""></option>
+        {% for t in titres %}
+          <option value="{{ t.id }}" {% if donnees.get('titre_id') == t.id %}selected{% endif %}>
+            {{ t.ticker }} — {{ t.nom }} ({{ t.devise }})
+          </option>
+        {% endfor %}
+      </select>
+      {% if erreurs.get('titre_id') %}<small class="erreur">{{ erreurs['titre_id'] }}</small>{% endif %}
+    </label>
+
+    {% if type_mouvement == 'achat' %}
+      {{ champ('Quantité', 'quantite', type='number', step='0.0001', required=True) }}
+      {{ champ('Prix unitaire EUR (facturé par le broker)', 'prix_unitaire', type='number', step='0.0001', required=True) }}
+      {{ champ('Frais courtage (€)', 'frais_courtage', type='number', step='0.01') }}
+      {{ champ('Devise d\'origine du titre (info)', 'devise', placeholder='EUR') }}
+      {{ champ('Taux change vs EUR (info)', 'taux_change', type='number', step='0.0001', placeholder='1.0') }}
+
+    {% elif type_mouvement == 'vente' %}
+      {{ champ('Quantité', 'quantite', type='number', step='0.0001', required=True) }}
+      <p class="muted" id="dispo-info">Sélectionner compte + titre pour voir la quantité disponible.</p>
+      {{ champ('Prix unitaire de vente EUR (encaissé)', 'prix_unitaire_vente', type='number', step='0.0001', required=True) }}
+      {{ champ('Frais courtage (€)', 'frais_courtage', type='number', step='0.01') }}
+      {{ champ('Devise d\'origine du titre (info)', 'devise', placeholder='EUR') }}
+      {{ champ('Taux change vs EUR (info)', 'taux_change', type='number', step='0.0001', placeholder='1.0') }}
+
+    {% elif type_mouvement == 'dividende_recu' %}
+      {{ champ('Quantité de titres concernés', 'quantite_titres_concernes', type='number', step='0.0001', required=True) }}
+      {{ champ('Montant brut par action', 'montant_brut_par_action', type='number', step='0.0001') }}
+      {{ champ('Montant brut total', 'montant_brut_total', type='number', step='0.01', required=True) }}
+      {{ champ('Devise', 'devise', placeholder='EUR') }}
+      {{ champ('Taux change vs EUR', 'taux_change', type='number', step='0.0001', placeholder='1.0') }}
+      {{ champ('Montant net en EUR (effectivement crédité)', 'montant_net_eur', type='number', step='0.01') }}
+    {% endif %}
+  {% endif %}
+
+  <label class="champ">
+    <span>Notes</span>
+    <textarea name="notes" rows="3" placeholder="Justification, contexte de la décision…">{{ donnees.get('notes', '') }}</textarea>
+  </label>
+
+  {# Propagation de l'origine ordre lors du submit #}
+  {% if source_evenement_id %}
+    <input type="hidden" name="source_evenement_id" value="{{ source_evenement_id }}">
+  {% endif %}
+  {% if source_ordre_watch_id and source_ordre_id %}
+    <input type="hidden" name="source_ordre_watch_id" value="{{ source_ordre_watch_id }}">
+    <input type="hidden" name="source_ordre_id" value="{{ source_ordre_id }}">
+  {% endif %}
+
+  <div class="formulaire-actions">
+    <button type="submit" class="btn btn-primary">
+      {{ 'Enregistrer les modifications' if mode == 'edition' else 'Enregistrer' }}
+    </button>
+    <a href="{{ url_for('mouvements.liste') }}" class="btn-link">Annuler</a>
+  </div>
+</form>
+
+{% if type_mouvement == 'vente' %}
+<script>
+  (function() {
+    const compte = document.querySelector('select[name="compte_id"]');
+    const titre = document.querySelector('select[name="titre_id"]');
+    const info = document.getElementById('dispo-info');
+    const exclureId = {{ (mouvement_id or '')|tojson }};
+    async function rafraichirDispo() {
+      if (!compte.value || !titre.value) {
+        info.textContent = 'Sélectionner compte + titre pour voir la quantité disponible.';
+        return;
+      }
+      const params = new URLSearchParams({
+        compte_id: compte.value, titre_id: titre.value,
+      });
+      if (exclureId) params.append('exclure_id', exclureId);
+      try {
+        const r = await fetch('{{ url_for("mouvements.dispo") }}?' + params);
+        const data = await r.json();
+        info.textContent = 'Quantité disponible (FIFO) : ' + data.quantite;
+      } catch (e) {
+        info.textContent = 'Impossible de récupérer la quantité disponible.';
+      }
+    }
+    compte.addEventListener('change', rafraichirDispo);
+    titre.addEventListener('change', rafraichirDispo);
+    rafraichirDispo();
+  })();
+</script>
+{% endif %}
+{% endblock %}

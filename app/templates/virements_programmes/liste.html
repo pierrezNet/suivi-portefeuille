@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Programmes récurrents — Suivi Portefeuille{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>Virements &amp; investissements programmés</h1>
+    <p class="muted">
+      Engagements récurrents. Sans titre = alimentation cash (mouvement
+      <code>alimentation_cash</code>). Avec titre = investissement DCA (rappel
+      d'événement à compléter par le mouvement réel après exécution broker).
+      Rattrapage automatique à chaque ouverture du tableau de bord.
+    </p>
+  </div>
+  <div>
+    <form method="post" action="{{ url_for('virements_programmes.rattraper_maintenant') }}" style="display:inline">
+      <button type="submit" class="btn">↻ Forcer rattrapage</button>
+    </form>
+    <a class="btn btn-primary" href="{{ url_for('virements_programmes.creer') }}">+ Nouveau programme</a>
+  </div>
+</section>
+
+<details class="aide-module">
+  <summary>💡 Quand utiliser cette page ?</summary>
+  <div class="aide-contenu">
+    <p><strong>Tu es sur Programmes :</strong> pour automatiser un engagement <strong>récurrent</strong> (virement bancaire permanent ou DCA broker).</p>
+    <ul>
+      <li><strong>Programmes (ici)</strong> — sans titre = <em>alimentation cash</em> auto. Avec titre = <em>DCA</em> qui génère un rappel d'événement à honorer après exécution broker. Le rattrapage tourne à chaque ouverture du dashboard.</li>
+      <li><strong><a href="{{ url_for('watchlist.liste') }}">Watchlist</a></strong> — pour les ordres limite <em>ponctuels</em> chez le broker (un seul achat à un prix donné), pas récurrents.</li>
+      <li><strong><a href="{{ url_for('evenements.liste') }}">Événements</a></strong> — c'est là que tu cliques « ✓ Honorer » pour chaque rappel DCA après ton ordre Amundi.</li>
+    </ul>
+  </div>
+</details>
+
+{% if virements %}
+<section class="stats-bandeau">
+  <div class="stat-bloc">
+    <span class="stat-label">Investissements actifs</span>
+    <span class="stat-valeur">{{ recap.total_mensuel_eq|euros }}</span>
+    <span class="stat-detail muted">équivalent / mois</span>
+  </div>
+  <div class="stat-bloc">
+    <span class="stat-label">Prochain investissement</span>
+    {% if recap.prochaine %}
+      <span class="stat-valeur">{{ recap.prochaine.montant }} €</span>
+      <span class="stat-detail muted">
+        {% if recap.prochaine.is_dca %}DCA{% else %}cash{% endif %}
+        — {{ recap.prochaine.libelle }}
+      </span>
+    {% else %}
+      <span class="stat-valeur">—</span>
+      <span class="stat-detail muted">aucune échéance</span>
+    {% endif %}
+  </div>
+  <div class="stat-bloc">
+    <span class="stat-label">Date d'exécution</span>
+    {% if recap.prochaine %}
+      <span class="stat-valeur">{{ recap.prochaine.date|date_fr }}</span>
+      <span class="stat-detail muted">
+        dont {{ recap.total_dca|euros }} DCA · {{ recap.total_cash|euros }} cash
+      </span>
+    {% else %}
+      <span class="stat-valeur">—</span>
+    {% endif %}
+  </div>
+</section>
+
+<table class="table-virements">
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Compte</th>
+      <th>Titre</th>
+      <th class="num">Montant</th>
+      <th>Périodicité</th>
+      <th>Jour</th>
+      <th>Libellé</th>
+      <th>Période</th>
+      <th>Statut</th>
+      <th class="actions">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for v in virements %}
+      <tr class="{% if not v.actif %}inactif{% endif %}">
+        <td>
+          {% if v.titre_id %}
+            <span class="pill pill-statut pill-statut-renforcement">DCA</span>
+          {% else %}
+            <span class="pill pill-statut">cash</span>
+          {% endif %}
+        </td>
+        <td>{{ comptes.get(v.compte_id, {}).get('nom', v.compte_id) }}</td>
+        <td>
+          {% if v.titre_id %}
+            {% set t = titres.get(v.titre_id, {}) %}
+            {{ t.get('nom', v.titre_id) }}{% if t.get('ticker') %} <small class="muted">({{ t.ticker }})</small>{% endif %}
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+        <td class="num"><strong>{{ v.montant }} €</strong></td>
+        <td>{{ v.get('periodicite', 'mensuel')|capitalize|replace('_', '-') }}</td>
+        <td>le {{ v.jour_du_mois }}</td>
+        <td>{{ v.libelle }}</td>
+        <td>
+          {{ v.date_debut|date_fr }}
+          {% if v.date_fin %} → {{ v.date_fin|date_fr }}{% else %} → ∞{% endif %}
+        </td>
+        <td>
+          {% if v.actif %}
+            <span class="pill pill-statut pill-statut-renforcement">actif</span>
+          {% else %}
+            <span class="pill pill-statut pill-statut-abandonne">inactif</span>
+          {% endif %}
+        </td>
+        <td class="actions">
+          <a href="{{ url_for('virements_programmes.editer', vp_id=v.id) }}" title="Éditer">✎</a>
+          <form method="post" action="{{ url_for('virements_programmes.supprimer', vp_id=v.id) }}" style="display:inline" onsubmit="return confirm('Supprimer ce virement programmé ? Les mouvements déjà créés ne seront pas effacés.');">
+            <button type="submit" class="btn-icone" title="Supprimer">🗑</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<section class="bloc">
+  <h2>📅 Prochaines échéances ({{ echeances|length }} dans l'année)</h2>
+  {% if echeances %}
+    <ul class="liste-evenements-titre">
+      {% for e in echeances[:12] %}
+        <li>
+          <strong>{{ e.date|date_fr }}</strong>
+          — {{ e.vp.montant }} €
+          {% if e.vp.titre_id %}
+            sur <strong>{{ titres.get(e.vp.titre_id, {}).get('nom', e.vp.titre_id) }}</strong>
+            <span class="pill pill-statut pill-statut-renforcement">DCA</span>
+          {% else %}
+            sur <strong>{{ comptes.get(e.vp.compte_id, {}).get('nom', e.vp.compte_id) }}</strong>
+          {% endif %}
+          <small class="muted">({{ e.vp.libelle }})</small>
+        </li>
+      {% endfor %}
+    </ul>
+    {% if echeances|length > 12 %}
+      <p class="muted">+ {{ echeances|length - 12 }} échéances suivantes…</p>
+    {% endif %}
+  {% else %}
+    <p class="muted">Aucune échéance prévue dans les 12 prochains mois.</p>
+  {% endif %}
+</section>
+
+{% else %}
+<div class="empty-state">
+  <span class="empty-icon">💸</span>
+  <h3>Aucun programme récurrent</h3>
+  <p>
+    Ajoute tes virements bancaires permanents et tes investissements
+    programmés (DCA Amundi, etc.) pour qu'ils apparaissent automatiquement
+    dans le journal.
+  </p>
+  <a class="btn btn-primary" href="{{ url_for('virements_programmes.creer') }}">+ Nouveau programme</a>
+</div>
+{% endif %}
+{% endblock %}

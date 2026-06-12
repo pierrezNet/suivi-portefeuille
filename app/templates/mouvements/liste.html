@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Mouvements — Suivi Portefeuille{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>Mouvements</h1>
+    <p class="muted">Toutes les opérations enregistrées, triées du plus récent au plus ancien.</p>
+  </div>
+  <div>
+    <a class="btn" href="{{ url_for('mouvements.export_csv', **request.args) }}" title="Télécharger un CSV (UTF-8, séparateur ;) compatible Excel / LibreOffice / expert-comptable">⬇ Export CSV</a>
+    <a class="btn btn-primary" href="{{ url_for('mouvements.choisir_type') }}">+ Nouveau mouvement</a>
+  </div>
+</section>
+
+<form method="get" class="filtres-bar">
+  <label>
+    <span>Compte</span>
+    <select name="compte_id">
+      <option value="">— Tous —</option>
+      {% for c in comptes %}
+        <option value="{{ c.id }}" {% if filtres.compte_id == c.id %}selected{% endif %}>{{ c.nom }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>
+    <span>Titre</span>
+    <select name="titre_id">
+      <option value="">— Tous —</option>
+      {% for t in titres %}
+        <option value="{{ t.id }}" {% if filtres.titre_id == t.id %}selected{% endif %}>{{ t.ticker }} — {{ t.nom }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>
+    <span>Type</span>
+    <select name="type">
+      <option value="">— Tous —</option>
+      {% for code, libelle in types.items() %}
+        <option value="{{ code }}" {% if filtres.type_ == code %}selected{% endif %}>{{ libelle }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>
+    <span>Du</span>
+    <input type="date" name="date_debut" value="{{ filtres.date_debut or '' }}">
+  </label>
+  <label>
+    <span>Au</span>
+    <input type="date" name="date_fin" value="{{ filtres.date_fin or '' }}">
+  </label>
+  <div class="filtres-actions">
+    <button type="submit" class="btn">Filtrer</button>
+    <a class="btn btn-link" href="{{ url_for('mouvements.liste') }}">Réinitialiser</a>
+  </div>
+</form>
+
+{% if mouvements %}
+<table class="table-mouvements">
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Type</th>
+      <th>Compte</th>
+      <th>Titre</th>
+      <th class="num">Quantité</th>
+      <th class="num">Prix unit.</th>
+      <th class="num">Frais</th>
+      <th class="num">Impact cash</th>
+      <th>Notes</th>
+      <th class="actions">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for m in mouvements %}
+      {% set compte = comptes_par_id.get(m.compte_id, {}) %}
+      {% set titre = titres_par_id.get(m.titre_id) %}
+      <tr class="ligne-{{ m.type }}">
+        <td>{{ m.date|date_fr }}</td>
+        <td><span class="pill pill-{{ m.type }}">{{ types.get(m.type, m.type) }}</span></td>
+        <td>{{ compte.nom or m.compte_id }}</td>
+        <td>
+          {% if titre %}
+            <code>{{ titre.ticker }}</code> {{ titre.nom }}
+          {% elif m.titre_id %}
+            {{ m.titre_id }}
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td class="num">
+          {% if m.type in ('achat', 'vente') %}{{ m.quantite|quantite }}
+          {% elif m.type == 'dividende_recu' %}{{ m.quantite_titres_concernes|quantite }}
+          {% else %}—{% endif %}
+        </td>
+        <td class="num">
+          {% if m.type == 'achat' %}{{ m.prix_unitaire|euros }}
+          {% elif m.type == 'vente' %}{{ m.prix_unitaire_vente|euros }}
+          {% elif m.type == 'dividende_recu' %}{{ m.montant_brut_par_action|euros }}
+          {% else %}—{% endif %}
+        </td>
+        <td class="num">
+          {% if m.frais_courtage is defined and m.frais_courtage %}{{ m.frais_courtage|euros }}{% else %}—{% endif %}
+        </td>
+        <td class="num">
+          {% if m.type == 'alimentation_cash' %}+{{ m.montant|euros }}
+          {% elif m.type == 'retrait_cash' %}−{{ m.montant|euros }}
+          {% elif m.type == 'frais' %}−{{ m.montant|euros }}
+          {% elif m.type == 'achat' %}−{{ ((m.quantite|string|float) * (m.prix_unitaire|string|float) + (m.frais_courtage|string|float))|round(2) }} €
+          {% elif m.type == 'vente' %}+{{ ((m.quantite|string|float) * (m.prix_unitaire_vente|string|float) - (m.frais_courtage|string|float))|round(2) }} €
+          {% elif m.type == 'dividende_recu' %}+{{ (m.montant_net_eur or m.montant_brut_total)|euros }}
+          {% else %}—{% endif %}
+        </td>
+        <td class="notes">
+          {{ m.libelle or '' }}
+          {% if m.notes %}<small class="muted">{{ m.notes }}</small>{% endif %}
+          {% if m.type == 'vente' and m.calcul_fifo %}
+            <small class="muted">PV : <strong>{{ m.calcul_fifo.plus_value_realisee|euros }}</strong></small>
+          {% endif %}
+        </td>
+        <td class="actions">
+          <a href="{{ url_for('mouvements.editer', mouvement_id=m.id) }}" title="Éditer">✎</a>
+          <form method="post" action="{{ url_for('mouvements.supprimer', mouvement_id=m.id) }}" style="display:inline" onsubmit="return confirm('Supprimer ce mouvement ?');">
+            <button type="submit" class="btn-icone" title="Supprimer">🗑</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+  <span class="empty-icon">📭</span>
+  <h3>Aucun mouvement à afficher</h3>
+  <p>
+    {% if filtres.compte_id or filtres.titre_id or filtres.type_ or filtres.date_debut or filtres.date_fin %}
+      Aucune opération ne correspond à ces filtres.
+      <br><a class="btn-link" href="{{ url_for('mouvements.liste') }}">Réinitialiser les filtres</a>
+    {% else %}
+      Commence par enregistrer ta première opération.
+    {% endif %}
+  </p>
+  {% if not (filtres.compte_id or filtres.titre_id or filtres.type_) %}
+    <a class="btn btn-primary" href="{{ url_for('mouvements.choisir_type') }}">+ Nouveau mouvement</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

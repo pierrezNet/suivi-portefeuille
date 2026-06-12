@@ -1,0 +1,22 @@
+[Unit]
+Description=Suivi Portefeuille — application Flask locale
+Documentation=file:///var/www/html/Bourse/README.md
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/html/Bourse
+ExecStart=/var/www/html/Bourse/.venv/bin/python /var/www/html/Bourse/run.py
+Restart=on-failure
+RestartSec=5
+# L'app n'écoute que sur 127.0.0.1 (cf. run.py), donc pas d'exposition réseau.
+# Logs : journalctl --user -u suivi-portefeuille -f
+StandardOutput=journal
+StandardError=journal
+# Hardening léger (service utilisateur)
+PrivateTmp=true
+ProtectHome=read-only
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

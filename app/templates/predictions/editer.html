@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier la prédiction — Suivi Portefeuille{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <h1>Modifier la prédiction</h1>
+  <p class="muted">Tu peux corriger les informations tant que la prédiction n'est pas évaluée.</p>
+</section>
+
+{% include 'predictions/_formulaire.html' %}
+{% endblock %}

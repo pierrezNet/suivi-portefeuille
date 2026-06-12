@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Récap fiscal — Suivi Portefeuille{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>Récapitulatifs fiscaux</h1>
+    <p class="muted">Vue par année. Cliquer sur une année pour le détail par compte.</p>
+  </div>
+</section>
+
+{% if annees %}
+  <table class="table-recap">
+    <thead>
+      <tr>
+        <th>Année</th>
+        <th class="num">Investi</th>
+        <th class="num">Frais</th>
+        <th class="num">Dividendes</th>
+        <th class="num">Plus-values</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ligne in annees %}
+        <tr>
+          <td>
+            <a href="{{ url_for('recap_fiscal.annee', annee=ligne.annee) }}"><strong>{{ ligne.annee }}</strong></a>
+          </td>
+          <td class="num">{{ ligne.cumul.montant_investi|euros }}</td>
+          <td class="num">{{ ligne.cumul.frais_courtage_total|euros }}</td>
+          <td class="num">{{ ligne.cumul.dividendes_recus_eur|euros }}</td>
+          <td class="num">
+            {% set pv = ligne.cumul.plus_values_realisees %}
+            <span class="{% if pv > 0 %}pv-positive{% elif pv < 0 %}pv-negative{% endif %}">
+              {{ pv|euros }}
+            </span>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p class="muted">Aucun mouvement enregistré, donc rien à récapituler pour le moment.</p>
+{% endif %}
+{% endblock %}

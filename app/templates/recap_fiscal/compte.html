@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}{{ compte.nom }} {{ annee }} — Récap fiscal{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>{{ compte.nom }} — {{ annee }}</h1>
+    <p class="muted">
+      <span class="badge badge-{{ compte.type|lower }}">{{ compte.type }}</span>
+      {{ compte.broker }} · n° {{ compte.numero }}
+      {% if compte.date_ouverture %} · ouvert le {{ compte.date_ouverture|date_fr }}{% endif %}
+    </p>
+  </div>
+  <a class="btn btn-link" href="{{ url_for('recap_fiscal.annee', annee=annee) }}">← Récap {{ annee }}</a>
+</section>
+
+<section class="kpis">
+  <div class="kpi">
+    <span class="kpi-label">Investi {{ annee }}</span>
+    <span class="kpi-value">{{ stats.montant_investi|euros }}</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Frais {{ annee }}</span>
+    <span class="kpi-value">{{ stats.frais_courtage_total|euros }}</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Dividendes {{ annee }}</span>
+    <span class="kpi-value">{{ stats.dividendes_recus_eur|euros }}</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">PV réalisées {{ annee }}</span>
+    <span class="kpi-value {% if stats.plus_values_realisees > 0 %}pv-positive{% elif stats.plus_values_realisees < 0 %}pv-negative{% endif %}">
+      {{ stats.plus_values_realisees|euros }}
+    </span>
+  </div>
+</section>
+
+{% if type_compte == 'CTO' %}
+  <section class="bloc">
+    <h2>Détail des ventes (formulaire 2074)</h2>
+    {% if ventes_2074 %}
+    <table class="table-2074">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Titre</th>
+          <th class="num">Quantité</th>
+          <th class="num">Prix d'achat global<br><small>(prix de revient)</small></th>
+          <th class="num">Prix de vente net<br><small>(produit net)</small></th>
+          <th class="num">+/− value</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in ventes_2074 %}
+        <tr>
+          <td>{{ v.date|date_fr }}</td>
+          <td><code>{{ v.ticker }}</code> {{ v.nom_titre }}</td>
+          <td class="num">{{ v.quantite|quantite }}</td>
+          <td class="num">{{ v.prix_revient|euros }}</td>
+          <td class="num">{{ v.produit_vente_net|euros }}</td>
+          <td class="num">
+            <span class="{% if v.plus_value > 0 %}pv-positive{% elif v.plus_value < 0 %}pv-negative{% endif %}">
+              {{ v.plus_value|euros }}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th colspan="5" style="text-align:right">Plus-value brute {{ annee }}</th>
+          <th class="num">{{ imputations.pv_brute_annee|euros }}</th>
+        </tr>
+      </tfoot>
+    </table>
+    {% else %}
+      <p class="muted">Aucune vente sur ce compte en {{ annee }}.</p>
+    {% endif %}
+  </section>
+
+  <section class="bloc">
+    <h2>Imputations & moins-values reportables (10 ans)</h2>
+    <p class="muted">
+      Les moins-values d'années passées sont imputables sur les plus-values des
+      <strong>10 années suivantes</strong>. Si tu as des moins-values antérieures
+      à l'historique stocké, tu peux les renseigner via l'URL :
+      <code>?mv_2023=250&mv_2024=120</code>.
+    </p>
+
+    <dl class="fiche">
+      <dt>Plus-value brute {{ annee }}</dt>
+      <dd>{{ imputations.pv_brute_annee|euros }}</dd>
+      <dt>Moins-values imputées</dt>
+      <dd>−{{ imputations.moins_values_imputees|euros }}</dd>
+      <dt><strong>PV nette imposable {{ annee }}</strong></dt>
+      <dd><strong class="{% if imputations.pv_nette_imposable > 0 %}pv-positive{% endif %}">
+        {{ imputations.pv_nette_imposable|euros }}
+      </strong></dd>
+      <dt>Total moins-values reportables fin {{ annee }}</dt>
+      <dd>{{ imputations.moins_values_a_reporter_total|euros }}</dd>
+    </dl>
+
+    {% if imputations.detail_reports %}
+      <h3>Détail des moins-values restantes</h3>
+      <table class="table-mv">
+        <thead>
+          <tr>
+            <th>Année d'origine</th>
+            <th class="num">Montant initial</th>
+            <th class="num">Déjà imputé</th>
+            <th class="num">Restant</th>
+            <th>Expire après</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in imputations.detail_reports %}
+          <tr>
+            <td>{{ r.annee_origine }}</td>
+            <td class="num">{{ r.montant_initial|euros }}</td>
+            <td class="num">{{ r.deja_impute|euros }}</td>
+            <td class="num"><strong>{{ r.restant|euros }}</strong></td>
+            <td>{{ r.expire_apres }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+
+    {% if moins_values_anterieures %}
+      <p class="muted">
+        Moins-values antérieures saisies en URL :
+        {% for mv in moins_values_anterieures %}
+          <strong>{{ mv.annee }} : {{ mv.montant }} €</strong>{% if not loop.last %}, {% endif %}
+        {% endfor %}
+      </p>
+    {% endif %}
+  </section>
+
+{% elif type_compte == 'PEA' %}
+  <section class="bloc">
+    <h2>Indicateurs PEA</h2>
+    <dl class="fiche">
+      <dt>Plafond légal</dt><dd>{{ indicateurs_pea.plafond|euros }}</dd>
+      <dt>Apports nets cumulés</dt><dd>{{ indicateurs_pea.apports_nets_cumules|euros }}</dd>
+      <dt>Plafond restant</dt>
+      <dd><strong class="pv-positive">{{ indicateurs_pea.plafond_restant|euros }}</strong></dd>
+      {% if indicateurs_pea.date_ouverture %}
+        <dt>Ouvert le</dt><dd>{{ indicateurs_pea.date_ouverture|date_fr }}</dd>
+      {% endif %}
+      <dt>Ancienneté</dt>
+      <dd>
+        {{ indicateurs_pea.annees_de_detention }} an(s)
+        {% if indicateurs_pea.eligible_exoneration_5_ans %}
+          <span class="pv-positive">— ✓ ≥ 5 ans (exonération possible)</span>
+        {% else %}
+          <span class="muted">— pas encore 5 ans</span>
+        {% endif %}
+      </dd>
+    </dl>
+    <p class="muted">
+      <strong>Note :</strong> les plus-values internes au PEA ne sont pas imposables
+      tant que les fonds restent sur le plan. Le récap ci-dessus reste informatif.
+      L'exonération d'IR sur les retraits s'applique après la 5ᵉ année (sous réserve
+      des prélèvements sociaux).
+    </p>
+  </section>
+{% else %}
+  <section class="bloc">
+    <p class="muted">Type de compte « {{ type_compte }} » : pas de calcul fiscal spécifique.</p>
+  </section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,22 @@
+# --- Données & secrets : JAMAIS versionnés (souveraineté) ---
+data/
+*.enc.json
+reglages.json
+app.log
+*.log
+backups/
+.env
+
+# --- Environnement Python ---
+.venv/
+__pycache__/
+*.pyc
+*.tmp
+.pytest_cache/
+
+# --- Sorties de build PyInstaller ---
+dist/
+build/
+
+# --- Outillage local ---
+.claude/

@@ -1,0 +1,424 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titre.ticker }} — {{ titre.nom }}{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1><code>{{ titre.ticker }}</code> {{ titre.nom }}</h1>
+    <p class="muted">
+      {{ titre.marche or '' }}
+      {% if titre.devise %} · {{ titre.devise }}{% endif %}
+      {% if titre.secteur %} · {{ titre.secteur }}{% endif %}
+      {% if titre.isin %} · ISIN <code>{{ titre.isin }}</code>{% endif %}
+      {% if titre.site_ir %} · <a href="{{ titre.site_ir }}" target="_blank" rel="noopener">site IR ↗</a>{% endif %}
+    </p>
+  </div>
+  <div>
+    <form method="post" action="{{ url_for('titres.actualiser_yahoo', titre_id=titre.id) }}" style="display:inline" title="Rafraîchit cap. boursière, dette nette, valeur d'entreprise, dividende depuis Yahoo Finance">
+      <button type="submit" class="btn">🔄 Actualiser Yahoo</button>
+    </form>
+    <a class="btn" href="{{ url_for('titres.editer', titre_id=titre.id) }}">Éditer</a>
+    <form method="post" action="{{ url_for('titres.supprimer', titre_id=titre.id) }}" style="display:inline" onsubmit="return confirm('Supprimer définitivement ce titre ?');">
+      <button type="submit" class="btn">Supprimer</button>
+    </form>
+  </div>
+</section>
+
+<section class="kpis">
+  {% if positions %}
+    {% for p in positions %}
+      <div class="kpi">
+        <span class="kpi-label">{{ p.compte.nom }} — quantité</span>
+        <span class="kpi-value">{{ p.quantite|quantite }}</span>
+        <small class="muted">PRU {{ p.pru|euros }}</small>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="kpi">
+      <span class="kpi-label">Position courante</span>
+      <span class="kpi-value muted">aucune</span>
+    </div>
+  {% endif %}
+  <div class="kpi">
+    <span class="kpi-label">Plus-values cumulées</span>
+    <span class="kpi-value {% if pv_titre > 0 %}pv-positive{% elif pv_titre < 0 %}pv-negative{% endif %}">
+      {{ pv_titre|euros }}
+    </span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Dividendes reçus</span>
+    <span class="kpi-value">{{ dividendes_eur|euros }}</span>
+    <small class="muted">{{ nb_dividendes }} versement(s)</small>
+  </div>
+</section>
+
+{# === Journal de bord agrégé ===================================== #}
+<section class="bloc">
+  <header class="bloc-header">
+    <h2>📓 Journal de bord</h2>
+    <button type="button" class="btn btn-primary" onclick="ouvrirFormulaireNote()">+ Ajouter une note</button>
+  </header>
+
+  <form id="formulaire-note" class="caché formulaire formulaire-note"
+        method="post"
+        action="{{ url_for('notes_titres.creer', titre_id=titre.id) }}">
+    <div class="boutons-rapides">
+      {% set raccourcis = [
+        ('signal_positif', '➕ Signal +'),
+        ('signal_negatif', '➖ Signal −'),
+        ('observation', '👁 Observation'),
+        ('decision', '📐 Décision'),
+        ('mise_a_jour_these', '📊 Maj thèse'),
+      ] %}
+      {% for code, libelle in raccourcis %}
+        <button type="button" class="btn btn-raccourci raccourci-{{ code }}"
+                data-type="{{ code }}" onclick="choisirType('{{ code }}')">
+          {{ libelle }}
+        </button>
+      {% endfor %}
+    </div>
+
+    <label class="champ">
+      <span>Date *</span>
+      <input type="date" name="date" required value="{{ now_date().isoformat() }}">
+    </label>
+    <label class="champ">
+      <span>Type *</span>
+      <select name="type" id="champ-type" required>
+        {% for code in types_note_codes %}
+          <option value="{{ code }}">{{ types_note[code] }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="champ">
+      <span>Événement déclencheur (optionnel)</span>
+      <select name="evenement_id">
+        <option value="">—</option>
+        {% for e in evenements_pour_lien %}
+          <option value="{{ e.id }}">
+            {{ e.date|date_fr }} — {{ e.libelle }}
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="champ champ-large">
+      <span>Titre court (optionnel — auto-rempli si vide)</span>
+      <input type="text" name="titre_court" maxlength="120" id="champ-titre-court"
+             placeholder="Laissé vide → repris automatiquement depuis le contenu">
+    </label>
+    <label class="champ champ-large">
+      <span>Contenu *</span>
+      <textarea name="contenu" rows="5" required id="champ-contenu"
+                placeholder="Réflexion, signal, décision, mise à jour de thèse…"></textarea>
+    </label>
+    <div class="formulaire-actions">
+      <button type="submit" class="btn btn-primary">Enregistrer la note</button>
+      <button type="button" class="btn-link" onclick="document.getElementById('formulaire-note').classList.add('caché')">Annuler</button>
+    </div>
+  </form>
+
+  <p class="muted" style="font-size: 0.82rem; margin-bottom: 0.5rem">
+    Les notes des mouvements (achat, vente, dividende) apparaissent ici automatiquement.
+  </p>
+
+  {% if journal %}
+    <ol class="notes-journal">
+      {% for e in journal %}
+        <li class="note-journal note-{{ e.type_code }} note-source-{{ e.source }}">
+          <header class="note-header">
+            <div>
+              <span class="pill pill-note pill-note-{{ e.type_code }}">
+                {% if e.source == 'mouvement' %}{{ e.type_libelle }}
+                {% else %}{{ types_note.get(e.type_code, e.type_code) }}{% endif %}
+              </span>
+              <span class="note-date">{{ e.date|date_fr }}</span>
+              <strong class="note-titre">{{ e.titre_court }}</strong>
+              {% if e.source == 'mouvement' %}
+                <small class="muted">(via mouvement)</small>
+              {% endif %}
+            </div>
+            <div class="actions-watch">
+              {% if e.source == 'note' %}
+                <a href="{{ url_for('notes_titres.editer', titre_id=titre.id, note_id=e.id) }}" title="Éditer la note">✎</a>
+                <form method="post"
+                      action="{{ url_for('notes_titres.supprimer', titre_id=titre.id, note_id=e.id) }}"
+                      style="display:inline"
+                      onsubmit="return confirm('Supprimer cette note ?');">
+                  <button type="submit" class="btn-icone" title="Supprimer">🗑</button>
+                </form>
+              {% else %}
+                <a href="{{ url_for('mouvements.editer', mouvement_id=e.id) }}" title="Éditer le mouvement">✎</a>
+              {% endif %}
+            </div>
+          </header>
+          <div class="note-contenu">{{ e.contenu|replace('\n', '<br>')|safe }}</div>
+          {% if e.evenement_id %}
+            <small class="muted">↪ liée à un événement : <code>{{ e.evenement_id }}</code></small>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+  {% else %}
+    <p class="muted">Aucune entrée. Ajoute une note ou enregistre un mouvement avec une note pour démarrer ton journal.</p>
+  {% endif %}
+</section>
+
+<script>
+  function ouvrirFormulaireNote() {
+    const f = document.getElementById('formulaire-note');
+    f.classList.toggle('caché');
+    if (!f.classList.contains('caché')) {
+      document.getElementById('champ-contenu').focus();
+    }
+  }
+  function choisirType(code) {
+    document.getElementById('champ-type').value = code;
+    document.querySelectorAll('.btn-raccourci').forEach(b => {
+      b.classList.toggle('actif', b.dataset.type === code);
+    });
+    document.getElementById('champ-contenu').focus();
+  }
+</script>
+
+<div class="grille-2cols">
+  <section class="bloc">
+    <h2>Thèse long terme</h2>
+    {% if titre.these_lt %}
+      <p style="white-space: pre-wrap">{{ titre.these_lt }}</p>
+    {% else %}
+      <p class="muted">Pas encore documentée. Cliquer sur <em>Éditer</em> pour décrire la vision, les objectifs et les conditions de sortie.</p>
+    {% endif %}
+
+    {% if titre.signaux_mt_positifs or titre.signaux_mt_negatifs %}
+      <h3>Signaux à surveiller</h3>
+      <p class="muted" style="font-size: 0.85rem">
+        Drapeaux théoriques. Les constats datés (« le payout a effectivement dépassé 100 % au T1 ») vont dans le journal de bord ci-dessus.
+      </p>
+      <div class="signaux">
+        <div class="signal signal-positif">
+          <strong>Positifs</strong>
+          {% if titre.signaux_mt_positifs %}<p>{{ titre.signaux_mt_positifs }}</p>{% else %}<p class="muted">—</p>{% endif %}
+        </div>
+        <div class="signal signal-negatif">
+          <strong>Négatifs</strong>
+          {% if titre.signaux_mt_negatifs %}<p>{{ titre.signaux_mt_negatifs }}</p>{% else %}<p class="muted">—</p>{% endif %}
+        </div>
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="bloc">
+    <h2>Fiche</h2>
+    {# Dernier snapshot historique pour calcul des deltas Yahoo #}
+    {% set dernier_snap = titre.historique_yahoo[-1] if titre.historique_yahoo else None %}
+    {% set devise_symbole = '$' if titre.devise == 'USD' else '€' %}
+    {#
+      sens_hausse :
+        'favorable' = la hausse est positive (cap, EV, dividende)
+        'defavorable' = la hausse est négative (dette nette)
+    #}
+    {% macro delta_chiffre(champ, valeur_actuelle, sens_hausse='favorable', unite='millions') -%}
+      {% if dernier_snap and dernier_snap.valeurs.get(champ) and valeur_actuelle %}
+        {% set avant = dernier_snap.valeurs[champ]|float %}
+        {% set actuel = valeur_actuelle|float %}
+        {% set delta = actuel - avant %}
+        {% if delta > 0 %}
+          {% set classe = 'delta-up ' ~ ('delta-bon' if sens_hausse == 'favorable' else 'delta-mauvais') %}
+          {% set fleche = '↑' %}
+          {% set signe = '+' %}
+        {% elif delta < 0 %}
+          {% set classe = 'delta-down ' ~ ('delta-mauvais' if sens_hausse == 'favorable' else 'delta-bon') %}
+          {% set fleche = '↓' %}
+          {% set signe = '' %}
+        {% else %}
+          {% set classe = 'delta-neutre' %}
+          {% set fleche = '→' %}
+          {% set signe = '' %}
+        {% endif %}
+        <div class="delta-yahoo {{ classe }}"
+             title="Ancienne valeur observée le {{ dernier_snap.date|date_fr }}">
+          {% if delta == 0 %}
+            {{ fleche }} inchangé <span class="delta-date">vs {{ dernier_snap.date|date_courte }}</span>
+          {% else %}
+            {{ fleche }}
+            {% if unite == 'millions' %}
+              {% set delta_fmt = (delta|round(0)|int)|millions(devise_symbole) %}
+            {% else %}
+              {% set delta_fmt = (('%+.2f' % delta) ~ ' ' ~ devise_symbole) %}
+            {% endif %}
+            {# Préfixer + pour les positifs, remplacer - par − unicode pour les négatifs #}
+            {% if delta > 0 and not delta_fmt.startswith('+') %}
+              +{{ delta_fmt|replace('-', '−') }}
+            {% else %}
+              {{ delta_fmt|replace('-', '−') }}
+            {% endif %}
+            <span class="delta-date">vs {{ dernier_snap.date|date_courte }}</span>
+          {% endif %}
+        </div>
+      {% endif %}
+    {%- endmacro %}
+    <dl class="fiche">
+      {% if titre.cours_jour_eur %}
+        <dt>Cours du jour</dt>
+        <dd>
+          <strong>{{ titre.cours_jour_eur|euros }}</strong>
+          {% if titre.cours_jour and titre.devise and titre.devise != 'EUR' %}
+            · {{ titre.cours_jour }} {{ titre.devise }}
+          {% endif %}
+          <small class="muted">au {{ titre.date_cours_jour|date_fr }}</small>
+        </dd>
+      {% endif %}
+      {% if titre.horizon %}<dt>Horizon</dt><dd>{{ titre.horizon }}</dd>{% endif %}
+      {% if titre.verse_dividende %}
+        <dt>Dividende</dt>
+        <dd>
+          {% if titre.frequence_dividende %}{{ titre.frequence_dividende }}{% else %}oui{% endif %}
+          {% if titre.dividende_par_action %} · {{ titre.dividende_par_action }} {{ devise_symbole }} / action{% endif %}
+          {{ delta_chiffre('dividende_par_action', titre.dividende_par_action, 'favorable', 'unite') }}
+        </dd>
+      {% endif %}
+      {% if titre.cap_boursiere_m %}
+        <dt>Cap. boursière</dt>
+        <dd>
+          {{ titre.cap_boursiere_m|millions(devise_symbole) }}
+          {{ delta_chiffre('cap_boursiere_m', titre.cap_boursiere_m, 'favorable') }}
+        </dd>
+      {% endif %}
+      {% if titre.dette_nette_m %}
+        <dt>Dette nette</dt>
+        <dd>
+          {{ titre.dette_nette_m|millions(devise_symbole) }}
+          {{ delta_chiffre('dette_nette_m', titre.dette_nette_m, 'defavorable') }}
+        </dd>
+      {% endif %}
+      {% if titre.valeur_entreprise_m %}
+        <dt>Valeur d'entreprise</dt>
+        <dd>
+          {{ titre.valeur_entreprise_m|millions(devise_symbole) }}
+          {{ delta_chiffre('valeur_entreprise_m', titre.valeur_entreprise_m, 'favorable') }}
+        </dd>
+      {% endif %}
+      {% if titre.date_creation %}<dt>Ajouté le</dt><dd>{{ titre.date_creation|date_fr }}</dd>{% endif %}
+    </dl>
+    {% if titre.historique_yahoo and titre.historique_yahoo|length > 1 %}
+      <details class="historique-yahoo-details">
+        <summary class="muted">Historique des {{ titre.historique_yahoo|length }} actualisations Yahoo</summary>
+        <ol class="historique-yahoo">
+          {% for snap in titre.historique_yahoo|reverse %}
+            <li>
+              <span class="historique-date">{{ snap.date|date_fr }}</span>
+              {% for k, v in snap.valeurs.items() %}
+                <code>{{ k }} = {{ v }}</code>
+              {% endfor %}
+            </li>
+          {% endfor %}
+        </ol>
+      </details>
+    {% endif %}
+  </section>
+</div>
+
+{% if titre.historique_theses %}
+<section class="bloc">
+  <h2>Historique de la thèse</h2>
+  <p class="muted">Versions précédentes conservées à chaque modification de la thèse, des perspectives ou des signaux.</p>
+  <ol class="historique-theses">
+    {% for v in titre.historique_theses|reverse %}
+      <li>
+        <span class="historique-date">{{ v.date|date_fr }}</span>
+        <dl>
+          {% for champ in ['these_lt', 'perspectives', 'signaux_mt_positifs', 'signaux_mt_negatifs'] %}
+            {% if v.valeurs[champ] %}
+              <dt>{{ {'these_lt':'Thèse LT','perspectives':'Perspectives','signaux_mt_positifs':'Signaux +','signaux_mt_negatifs':'Signaux −'}[champ] }}</dt>
+              <dd>{{ v.valeurs[champ] }}</dd>
+            {% endif %}
+          {% endfor %}
+        </dl>
+      </li>
+    {% endfor %}
+  </ol>
+</section>
+{% endif %}
+
+{# === Événements à venir liés au titre =========================== #}
+{% if evenements_a_venir %}
+<section class="bloc">
+  <h2>📅 Événements à venir</h2>
+  <ul class="liste-evenements-titre">
+    {% for e in evenements_a_venir %}
+      <li>
+        <strong>{{ e.date|date_fr }}</strong>
+        <span class="muted">— {{ types_evenement.get(e.type, e.type) }}</span>
+        <div>{{ e.libelle }}</div>
+        {% if e.notes %}<small class="muted">{{ e.notes }}</small>{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section class="bloc">
+  <h2>Historique des mouvements ({{ mouvements|length }})</h2>
+  {% if mouvements %}
+    <table class="table-mouvements">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Compte</th>
+          <th class="num">Quantité</th>
+          <th class="num">Prix</th>
+          <th class="num">Frais</th>
+          <th class="num">PV</th>
+          <th>Notes</th>
+          <th class="actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in mouvements %}
+          <tr class="ligne-{{ m.type }}">
+            <td>{{ m.date|date_fr }}</td>
+            <td><span class="pill pill-{{ m.type }}">{{
+              {'achat':'Achat','vente':'Vente','dividende_recu':'Dividende',
+               'alimentation_cash':'Alim','retrait_cash':'Retrait','frais':'Frais'}.get(m.type, m.type)
+            }}</span></td>
+            <td>{{ comptes.get(m.compte_id, {}).get('nom', m.compte_id) }}</td>
+            <td class="num">
+              {% if m.type == 'dividende_recu' %}{{ m.quantite_titres_concernes|quantite }}
+              {% elif m.type in ('achat','vente') %}{{ m.quantite|quantite }}
+              {% else %}—{% endif %}
+            </td>
+            <td class="num">
+              {% if m.type == 'achat' %}{{ m.prix_unitaire|euros }}
+              {% elif m.type == 'vente' %}{{ m.prix_unitaire_vente|euros }}
+              {% elif m.type == 'dividende_recu' %}{{ m.montant_brut_par_action|euros }}
+              {% else %}—{% endif %}
+            </td>
+            <td class="num">
+              {% if m.frais_courtage %}{{ m.frais_courtage|euros }}{% else %}—{% endif %}
+            </td>
+            <td class="num">
+              {% if m.type == 'vente' and m.calcul_fifo %}
+                <span class="{% if (m.calcul_fifo.plus_value_realisee|float) >= 0 %}pv-positive{% else %}pv-negative{% endif %}">
+                  {{ m.calcul_fifo.plus_value_realisee|euros }}
+                </span>
+              {% else %}—{% endif %}
+            </td>
+            <td class="notes">
+              {% if m.notes %}{{ m.notes }}{% else %}—{% endif %}
+            </td>
+            <td class="actions">
+              <a href="{{ url_for('mouvements.editer', mouvement_id=m.id) }}" title="Éditer">✎</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="muted">Aucun mouvement enregistré pour ce titre.</p>
+  {% endif %}
+</section>
+
+<p><a href="{{ url_for('titres.liste') }}" class="btn-link">← Retour au catalogue</a></p>
+{% endblock %}

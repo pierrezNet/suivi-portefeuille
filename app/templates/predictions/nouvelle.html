@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}Nouvelle prédiction — Suivi Portefeuille{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <h1>Nouvelle prédiction</h1>
+  <p class="muted">Note un avis directionnel daté. Aucun capital engagé — l'objectif est de mesurer la justesse a posteriori.</p>
+</section>
+
+{% include 'predictions/_formulaire.html' %}
+{% endblock %}

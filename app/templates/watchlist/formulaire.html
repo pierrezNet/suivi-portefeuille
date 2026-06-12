@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Édition' if mode == 'edition' else 'Ajout watchlist' }}{% endblock %}
+
+{% macro champ(label, name, type='text', placeholder='', required=False) -%}
+  <label class="champ">
+    <span>{{ label }}{% if required %} *{% endif %}</span>
+    <input type="{{ type }}" name="{{ name }}"
+           value="{{ donnees.get(name, '') }}"
+           {% if required %}required{% endif %}
+           placeholder="{{ placeholder }}">
+    {% if erreurs.get(name) %}<small class="erreur">{{ erreurs[name] }}</small>{% endif %}
+  </label>
+{%- endmacro %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>{{ 'Modifier la watchlist' if mode == 'edition' else 'Ajouter à la watchlist' }}</h1>
+    <p class="muted">Pour les titres surveillés mais pas encore en portefeuille, ou pour planifier un rachat futur.</p>
+  </div>
+  {% if mode == 'edition' %}
+    <a class="btn" href="{{ url_for('watchlist.editer', watch_id=watch_id, enrichir_yahoo=1) }}"
+       title="Tente de compléter les champs vides (nom, marché, devise, cap. boursière) depuis Yahoo Finance">
+      🔄 Compléter depuis Yahoo
+    </a>
+  {% endif %}
+</section>
+
+{% if info_enrichissement %}
+  <div class="bandeau-info">{{ info_enrichissement }}</div>
+{% endif %}
+
+<form method="post" class="formulaire">
+  {{ champ('Nom', 'nom', placeholder='Infineon Technologies') }}
+  {{ champ('Ticker', 'ticker', placeholder='IFX') }}
+
+  <label class="champ">
+    <span>Lier à un titre du catalogue</span>
+    <select name="titre_id">
+      <option value=""></option>
+      {% for t in titres %}
+        <option value="{{ t.id }}" {% if donnees.get('titre_id') == t.id %}selected{% endif %}>
+          {{ t.ticker }} — {{ t.nom }}
+        </option>
+      {% endfor %}
+    </select>
+  </label>
+
+  {{ champ('Marché', 'marche', placeholder='Xetra, NYSE, Euronext Paris…') }}
+  {{ champ('Devise', 'devise', placeholder='EUR') }}
+  {{ champ('Cap. boursière', 'cap_boursiere', placeholder='~50 Md€') }}
+
+  <label class="champ">
+    <span>Compte cible</span>
+    <select name="compte_cible">
+      <option value=""></option>
+      {% for c in comptes %}
+        <option value="{{ c.id }}" {% if donnees.get('compte_cible') == c.id %}selected{% endif %}>
+          {{ c.nom }}
+        </option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label class="champ">
+    <span>Statut</span>
+    <select name="statut">
+      {% for s in statuts %}
+        <option value="{{ s }}" {% if donnees.get('statut', 'actif') == s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label class="champ">
+    <span>Priorité</span>
+    <select name="priorite">
+      {% for p in priorites %}
+        <option value="{{ p }}" {% if donnees.get('priorite', 'moyenne') == p %}selected{% endif %}>{{ p }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  {{ champ('Échéance abandon (YYYY-MM-DD)', 'echeance_abandon', type='date') }}
+
+  <label class="champ champ-large">
+    <span>Thèse</span>
+    <textarea name="these_lt" rows="3" placeholder="Pourquoi surveiller ce titre…">{{ donnees.get('these_lt', '') }}</textarea>
+  </label>
+
+  <fieldset class="champ champ-large paliers-fieldset">
+    <legend>Paliers de rachat (plan indicatif)</legend>
+    <p class="muted">Plan théorique de répartition, sans validité ni suivi. Pour un vrai ordre actif, utiliser la section suivante.</p>
+    <div class="paliers-grille">
+      <label>
+        <span>Prix — un par ligne</span>
+        <textarea name="paliers_prix" rows="3" placeholder="80&#10;65&#10;50">{{ donnees.get('paliers_prix', '') }}</textarea>
+      </label>
+      <label>
+        <span>Tranche</span>
+        <textarea name="paliers_tranche" rows="3" placeholder="1/3&#10;1/3&#10;1/3">{{ donnees.get('paliers_tranche', '') }}</textarea>
+      </label>
+      <label>
+        <span>Commentaire</span>
+        <textarea name="paliers_commentaire" rows="3" placeholder="Premier rachat&#10;Renforcement&#10;Renforcement final">{{ donnees.get('paliers_commentaire', '') }}</textarea>
+      </label>
+    </div>
+    {% if erreurs.get('paliers_rachat') %}<small class="erreur">{{ erreurs['paliers_rachat'] }}</small>{% endif %}
+  </fieldset>
+
+  <fieldset class="champ champ-large paliers-fieldset">
+    <legend>📋 Ordre limite actif (broker)</legend>
+    <p class="muted">
+      Un seul ordre limite ponctuel à la fois pour cette position
+      (ex : « si Infineon ≤ 60 € »). Visible dans l'agenda + calendrier ICS.
+      Vide les champs pour annuler l'ordre actif.
+      <br>
+      <em>Pas pour les DCA récurrents (Amundi, etc.) → utiliser le menu
+      <a href="{{ url_for('virements_programmes.liste') }}">Programmes</a>.</em>
+    </p>
+    <div class="paliers-grille" style="grid-template-columns: 1fr 0.6fr 1fr 1.5fr">
+      <label>
+        <span>Prix limite</span>
+        <input type="number" step="0.01" name="ordre_prix"
+               value="{{ donnees.get('ordre_prix', '') }}" placeholder="175">
+      </label>
+      <label>
+        <span>Quantité (titres)</span>
+        <input type="number" step="0.01" name="ordre_quantite"
+               value="{{ donnees.get('ordre_quantite', '') }}" placeholder="1">
+      </label>
+      <label>
+        <span>Validité</span>
+        <input type="date" name="ordre_validite"
+               value="{{ donnees.get('ordre_validite', '') }}">
+      </label>
+      <label>
+        <span>Note</span>
+        <textarea name="ordre_note" rows="2" placeholder="Ordre conditionnel — doublement de la position">{{ donnees.get('ordre_note', '') }}</textarea>
+      </label>
+    </div>
+    {# Préserver id et date_creation de l'ordre actif lors d'une re-saisie #}
+    <input type="hidden" name="ordre_id" value="{{ donnees.get('ordre_id', '') }}">
+    <input type="hidden" name="ordre_date_creation" value="{{ donnees.get('ordre_date_creation', '') }}">
+    {% if erreurs.get('ordres_actifs') %}<small class="erreur">{{ erreurs['ordres_actifs'] }}</small>{% endif %}
+  </fieldset>
+
+  {% if historique %}
+  <fieldset class="champ champ-large paliers-fieldset">
+    <legend>🗂 Historique des ordres ({{ historique|length }})</legend>
+    <p class="muted">
+      Ordres clos pour cette position. {% if a_un_actif %}
+        Un ordre actif est déjà en cours — annule-le d'abord pour pouvoir
+        réactiver un ancien ordre.
+      {% else %}
+        Aucun ordre actif : tu peux réactiver un ancien ordre, ou en saisir
+        un nouveau ci-dessus.
+      {% endif %}
+    </p>
+    <table class="table-historique-ordres">
+      <thead>
+        <tr>
+          <th>Créé</th>
+          <th class="num">Prix × Qté</th>
+          <th>Validité</th>
+          <th>Note</th>
+          <th>Statut</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in historique %}
+          <tr>
+            <td>{{ o.date_creation|date_fr if o.date_creation else '—' }}</td>
+            <td class="num">{{ o.prix_limite }} × {{ o.quantite }}</td>
+            <td>{{ o.validite|date_fr if o.validite else '—' }}</td>
+            <td><small class="muted">{{ o.note or '' }}</small></td>
+            <td><span class="pill pill-statut pill-statut-{{ o.statut }}">{{ o.statut }}</span></td>
+            <td>
+              {% if not a_un_actif and watch_id %}
+                <form method="post"
+                      action="{{ url_for('watchlist.reactiver_ordre', watch_id=watch_id, ordre_id=o.id) }}"
+                      style="display:inline">
+                  <button type="submit" class="btn-link" title="Remettre cet ordre en attente">↻ Réactiver</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </fieldset>
+  {% endif %}
+
+  <label class="champ champ-large">
+    <span>Notes</span>
+    <textarea name="notes" rows="2">{{ donnees.get('notes', '') }}</textarea>
+  </label>
+
+  <div class="formulaire-actions">
+    <button type="submit" class="btn btn-primary">
+      {{ 'Enregistrer les modifications' if mode == 'edition' else 'Ajouter' }}
+    </button>
+    <a href="{{ url_for('watchlist.liste') }}" class="btn-link">Annuler</a>
+  </div>
+</form>
+{% endblock %}

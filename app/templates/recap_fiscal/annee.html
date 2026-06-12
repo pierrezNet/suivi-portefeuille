@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Récap {{ annee }} — Suivi Portefeuille{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>Récap fiscal {{ annee }}</h1>
+    <p class="muted">Synthèse globale, puis détail par compte.</p>
+  </div>
+  <div>
+    <a class="btn" href="{{ url_for('recap_fiscal.export_csv', annee=annee) }}" title="Télécharger en CSV (UTF-8, séparateur ;) pour expert-comptable / archivage">⬇ Export CSV</a>
+    <a class="btn btn-link" href="{{ url_for('recap_fiscal.index') }}">← Toutes les années</a>
+  </div>
+</section>
+
+<section class="kpis">
+  <div class="kpi">
+    <span class="kpi-label">Investi</span>
+    <span class="kpi-value">{{ cumul.montant_investi|euros }}</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Frais</span>
+    <span class="kpi-value">{{ cumul.frais_courtage_total|euros }}</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Dividendes (EUR net)</span>
+    <span class="kpi-value">{{ cumul.dividendes_recus_eur|euros }}</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Plus-values réalisées</span>
+    <span class="kpi-value {% if cumul.plus_values_realisees > 0 %}pv-positive{% elif cumul.plus_values_realisees < 0 %}pv-negative{% endif %}">
+      {{ cumul.plus_values_realisees|euros }}
+    </span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Alimentations</span>
+    <span class="kpi-value">{{ cumul.montant_alimentations|euros }}</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Retraits</span>
+    <span class="kpi-value">{{ cumul.montant_retraits|euros }}</span>
+  </div>
+</section>
+
+<h2>Détail par compte</h2>
+<div class="grille-cartes">
+  {% for ligne in par_compte %}
+    {% set s = ligne.stats %}
+    <article class="bloc">
+      <header style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <h3 style="margin:0">{{ ligne.compte.nom }}</h3>
+          <span class="badge badge-{{ ligne.compte.type|lower }}">{{ ligne.compte.type }}</span>
+        </div>
+        <a class="btn" href="{{ url_for('recap_fiscal.compte_annee', annee=annee, compte_id=ligne.compte.id) }}">
+          Voir le détail →
+        </a>
+      </header>
+      <dl class="fiche">
+        <dt>Investi</dt><dd>{{ s.montant_investi|euros }}</dd>
+        <dt>Frais</dt><dd>{{ s.frais_courtage_total|euros }}</dd>
+        <dt>Dividendes</dt><dd>{{ s.dividendes_recus_eur|euros }}</dd>
+        <dt>PV réalisées</dt>
+        <dd class="{% if s.plus_values_realisees > 0 %}pv-positive{% elif s.plus_values_realisees < 0 %}pv-negative{% endif %}">
+          {{ s.plus_values_realisees|euros }}
+        </dd>
+        <dt>Alim. / Retraits</dt>
+        <dd>+{{ s.montant_alimentations|euros }} / −{{ s.montant_retraits|euros }}</dd>
+      </dl>
+    </article>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Titres — Suivi Portefeuille{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>Catalogue des titres</h1>
+    <p class="muted">Toutes les valeurs connues — détenues ou non.</p>
+  </div>
+  <div>
+    <a class="btn" href="{{ url_for('titres.importer_xlsx') }}" title="Importer les cours du jour depuis l'export xlsx Bourse Direct">⬆ Importer cours (xlsx)</a>
+    <a class="btn btn-primary" href="{{ url_for('titres.creer') }}">+ Nouveau titre</a>
+  </div>
+</section>
+
+{% if titres %}
+<table class="table-titres">
+  <thead>
+    <tr>
+      <th>Ticker</th>
+      <th>Nom</th>
+      <th>Marché</th>
+      <th>Devise</th>
+      <th>Secteur</th>
+      <th class="num">Position</th>
+      <th class="num">Cours du jour</th>
+      <th class="num">PV cumulée</th>
+      <th>Activité</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in titres %}
+      {% set position = positions_par_titre.get(t.id, 0) %}
+      <tr>
+        <td><a href="{{ url_for('titres.detail', titre_id=t.id) }}"><code>{{ t.ticker }}</code></a></td>
+        <td><a href="{{ url_for('titres.detail', titre_id=t.id) }}">{{ t.nom }}</a></td>
+        <td>{{ t.marche or '—' }}</td>
+        <td>{{ t.devise or '—' }}</td>
+        <td>{{ t.secteur or '—' }}</td>
+        <td class="num">
+          {% if position > 0 %}
+            <strong>{{ position }}</strong>
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+        <td class="num">
+          {% if t.cours_jour_eur %}
+            {{ t.cours_jour_eur|euros }}
+            <br><small class="muted">{{ t.date_cours_jour|date_courte }}</small>
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+        <td class="num">
+          {% set pv = pv_par_titre.get(t.id) %}
+          {% if pv is not none and pv != 0 %}
+            <span class="{% if pv >= 0 %}pv-positive{% else %}pv-negative{% endif %}">
+              {{ pv|euros }}
+            </span>
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+        <td>
+          {% set act = activite_par_titre.get(t.id) %}
+          {% if act %}
+            <span class="muted">{{ act.nb }} note{% if act.nb > 1 %}s{% endif %} · dernière {{ act.derniere_date|date_fr }}</span>
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+  <span class="empty-icon">📊</span>
+  <h3>Catalogue vide</h3>
+  <p>Ajoute les titres que tu détiens ou que tu surveilles, avec leurs thèses long terme.</p>
+  <a class="btn btn-primary" href="{{ url_for('titres.creer') }}">+ Nouveau titre</a>
+</div>
+{% endif %}
+{% endblock %}

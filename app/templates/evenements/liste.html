@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Événements — Suivi Portefeuille{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>Événements</h1>
+    <p class="muted">
+      Publications, dividendes, rappels personnels. Abonnement calendrier :
+      <a href="{{ url_for('calendrier_ics') }}"><code>calendrier.ics</code></a>
+      (à utiliser comme URL d'abonnement dans GNOME Calendar / Thunderbird).
+    </p>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('evenements.creer') }}">+ Nouvel événement</a>
+</section>
+
+<details class="aide-module">
+  <summary>💡 Quand utiliser cette page ?</summary>
+  <div class="aide-contenu">
+    <p><strong>Tu es sur Événements :</strong> agenda des <strong>dates importantes</strong> (résultats, dividendes, AG) et des <strong>rappels DCA</strong> générés automatiquement.</p>
+    <ul>
+      <li><strong>Événements (ici)</strong> — tout ce qui doit tomber dans ton agenda. Les rappels DCA (préfixe <code>e-dca-</code>) viennent de Programmes ; le bouton « ✓ Honorer » pré-remplit un mouvement d'achat avec le montant cible.</li>
+      <li><strong><a href="{{ url_for('virements_programmes.liste') }}">Programmes</a></strong> — pour créer ou modifier le DCA qui génère les rappels.</li>
+      <li><strong><a href="{{ url_for('watchlist.liste') }}">Watchlist</a></strong> — pour les ordres limite ponctuels (qui n'ont pas leur propre rappel auto, mais dont la validité apparaît dans l'agenda).</li>
+    </ul>
+    <p class="muted">Tous ces événements alimentent le <a href="{{ url_for('calendrier_ics') }}"><code>calendrier.ics</code></a> à intégrer dans ton agenda.</p>
+  </div>
+</details>
+
+<form method="get" class="filtres-bar">
+  <label>
+    <span>Titre</span>
+    <select name="titre_id">
+      <option value="">— Tous —</option>
+      {% for t in titres %}
+        <option value="{{ t.id }}" {% if filtres.titre_id == t.id %}selected{% endif %}>{{ t.ticker }} — {{ t.nom }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>
+    <span>Type</span>
+    <select name="type">
+      <option value="">— Tous —</option>
+      {% for code, libelle in types.items() %}
+        <option value="{{ code }}" {% if filtres.type_ == code %}selected{% endif %}>{{ libelle }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>
+    <span>Du</span>
+    <input type="date" name="date_debut" value="{{ filtres.date_debut or '' }}">
+  </label>
+  <label>
+    <span>Au</span>
+    <input type="date" name="date_fin" value="{{ filtres.date_fin or '' }}">
+  </label>
+  <label class="check-inclure-passe">
+    <input type="checkbox" name="inclure_passe" value="1" {% if inclure_passe %}checked{% endif %}>
+    <span>Inclure le passé</span>
+  </label>
+  <div class="filtres-actions">
+    <button type="submit" class="btn">Filtrer</button>
+    <a class="btn btn-link" href="{{ url_for('evenements.liste') }}">Réinitialiser</a>
+  </div>
+</form>
+
+{% if passe_masque %}
+  <p class="muted bandeau-info">
+    📅 Seuls les événements à venir sont affichés.
+    <a href="{{ url_for('evenements.liste', inclure_passe=1) }}">Afficher aussi le passé →</a>
+  </p>
+{% endif %}
+
+{% if evenements %}
+<table class="table-evenements">
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Type</th>
+      <th>Titre</th>
+      <th>Libellé</th>
+      <th>Notes</th>
+      <th class="actions">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for e in evenements %}
+      <tr>
+        <td>{{ e.date|date_fr }}</td>
+        <td>{{ types.get(e.type, e.type) }}</td>
+        <td>
+          {% if e.titre_id and titres_par_id.get(e.titre_id) %}
+            <code>{{ titres_par_id[e.titre_id].ticker }}</code>
+            {{ titres_par_id[e.titre_id].nom }}
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+        <td>{{ e.libelle }}</td>
+        <td class="notes">{{ e.notes or '' }}</td>
+        <td class="actions">
+          {% set info_dca = info_dca_par_id.get(e.id) %}
+          {% if info_dca %}
+            <a class="btn-icone" title="Honorer ce rappel DCA (pré-remplit un mouvement d'achat)"
+               href="{{ url_for('mouvements.creer', type_mouvement='achat',
+                      source_evenement_id=e.id,
+                      compte_id=info_dca.compte_id,
+                      titre_id=info_dca.titre_id,
+                      devise=info_dca.devise,
+                      date=e.date,
+                      montant_cible=info_dca.montant_cible) }}">✓ Honorer</a>
+          {% elif e.mouvement_id %}
+            <span class="muted" title="Rappel honoré par le mouvement {{ e.mouvement_id }}">✓ honoré</span>
+          {% endif %}
+          <a href="{{ url_for('evenements.editer', evenement_id=e.id) }}" title="Éditer">✎</a>
+          <form method="post" action="{{ url_for('evenements.supprimer', evenement_id=e.id) }}" style="display:inline" onsubmit="return confirm('Supprimer cet événement ?');">
+            <button type="submit" class="btn-icone" title="Supprimer">🗑</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+  <span class="empty-icon">📅</span>
+  <h3>Aucun événement</h3>
+  <p>Publications de résultats, dividendes, rappels personnels — tout ce qui doit apparaître dans ton calendrier.</p>
+  <a class="btn btn-primary" href="{{ url_for('evenements.creer') }}">+ Créer un événement</a>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Évaluer la prédiction — Suivi Portefeuille{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <h1>Évaluer la prédiction</h1>
+  <p class="muted">Saisis le cours observé à l'échéance pour clore la prédiction.</p>
+</section>
+
+<section class="recap-prediction">
+  <dl>
+    <dt>Titre</dt><dd><strong>{{ prediction.ticker }}</strong> — {{ prediction.nom }}</dd>
+    <dt>Sens prédit</dt><dd>{{ prediction.sens|capitalize }}</dd>
+    <dt>Date de prédiction</dt><dd>{{ prediction.date_prediction|date_fr }}</dd>
+    <dt>Cours de référence</dt><dd>{{ prediction.cours_reference }} {{ prediction.devise }}</dd>
+    <dt>Échéance prévue</dt><dd>{{ prediction.date_echeance|date_fr }}</dd>
+    <dt>Conviction</dt><dd>{{ prediction.conviction }}/5</dd>
+    {% if prediction.raisonnement %}
+      <dt>Raisonnement</dt><dd>{{ prediction.raisonnement }}</dd>
+    {% endif %}
+  </dl>
+</section>
+
+<form method="post" class="formulaire">
+  <label class="champ">
+    <span>Cours observé à l'échéance *</span>
+    <input type="text" name="cours_echeance"
+           value="{{ donnees.get('cours_echeance', '') }}"
+           placeholder="ex : 42.10" required>
+    {% if erreurs.get('cours_echeance') %}<small class="erreur">{{ erreurs['cours_echeance'] }}</small>{% endif %}
+  </label>
+
+  <label class="champ champ-large">
+    <span>Notes d'évaluation</span>
+    <textarea name="notes_evaluation" rows="4"
+              placeholder="Qu'est-ce qui a marché / pas marché ? Quelle leçon pour les prochaines prédictions ?">{{ donnees.get('notes_evaluation', '') }}</textarea>
+  </label>
+
+  <div class="formulaire-actions">
+    <button type="submit" class="btn btn-primary">Évaluer et clore</button>
+    <a href="{{ url_for('predictions.liste') }}" class="btn-link">Annuler</a>
+  </div>
+</form>
+{% endblock %}

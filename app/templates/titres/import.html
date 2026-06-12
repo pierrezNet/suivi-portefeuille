@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Importer les cours (xlsx) — Suivi Portefeuille{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>Importer les cours du jour</h1>
+    <p class="muted">
+      Dépose ici l'export <strong>« Mes positions »</strong> de Bourse Direct
+      au format <code>.xlsx</code>. L'app utilise l'<strong>ISIN</strong> pour
+      reconnaître chaque titre et met à jour son <strong>cours du jour</strong>
+      (en devise locale et converti en EUR).
+    </p>
+    <p class="muted">
+      Aucune autre donnée n'est touchée — ni quantité, ni PRU, ni thèse :
+      seul le cours est mis à jour. Les calculs fiscaux et de plus-values
+      continuent de s'appuyer sur tes mouvements saisis.
+    </p>
+  </div>
+</section>
+
+<form method="post" enctype="multipart/form-data" class="formulaire">
+  <label class="champ champ-large">
+    <span>Fichier(s) xlsx Bourse Direct *</span>
+    <input type="file" name="fichiers" accept=".xlsx" required multiple>
+    <small class="muted">
+      Tu peux sélectionner les deux exports d'un coup (CTO + PEA) — l'import les fusionne.
+      Pour les générer : Bourse Direct → onglet « Mes positions » → bouton
+      d'export Excel (icône en haut à droite). Un export par compte.
+    </small>
+  </label>
+
+  <label class="champ">
+    <input type="checkbox" name="creer_inconnus" value="1">
+    <span>Créer automatiquement les titres absents du catalogue</span>
+    <small class="muted">
+      Utile pour un premier import : tous les titres détenus chez BD mais
+      pas encore dans <code>titres.json</code> seront ajoutés avec leur nom,
+      ISIN, devise, marché et MIC. Le ticker provisoire pourra être édité
+      ensuite (BD n'en fournit pas un propre).
+    </small>
+  </label>
+
+  <div class="formulaire-actions">
+    <button type="submit" class="btn btn-primary">⬆ Importer</button>
+    <a href="{{ url_for('titres.liste') }}" class="btn-link">Annuler</a>
+  </div>
+</form>
+{% endblock %}

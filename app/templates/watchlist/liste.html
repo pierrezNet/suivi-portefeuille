@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Watchlist — Suivi Portefeuille{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>Watchlist</h1>
+    <p class="muted">Titres surveillés, prospections et plans de rachat.</p>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('watchlist.creer') }}">+ Ajouter à la watchlist</a>
+</section>
+
+<details class="aide-module">
+  <summary>💡 Quand utiliser cette page ?</summary>
+  <div class="aide-contenu">
+    <p><strong>Tu es sur la Watchlist :</strong> pour <strong>surveiller un titre</strong> et éventuellement poser un <strong>ordre limite ponctuel</strong> chez ton broker.</p>
+    <ul>
+      <li><strong>Watchlist (ici)</strong> — un titre, une thèse, des paliers de rachat indicatifs, et un ordre limite ponctuel (« si Infineon ≤ 60 € »). Le bouton « ✓ Exécuté » crée le mouvement d'achat correspondant.</li>
+      <li><strong><a href="{{ url_for('virements_programmes.liste') }}">Programmes</a></strong> — pour les engagements <em>récurrents</em> : virement bancaire permanent, DCA Amundi mensuel, etc.</li>
+      <li><strong><a href="{{ url_for('evenements.liste') }}">Événements</a></strong> — agenda des dates importantes (résultats, dividendes, AG) + rappels DCA générés automatiquement par Programmes.</li>
+    </ul>
+  </div>
+</details>
+
+<form method="get" class="filtres-bar">
+  <label>
+    <span>Statut</span>
+    <select name="statut">
+      <option value="">— Tous —</option>
+      {% for s in statuts %}
+        <option value="{{ s }}" {% if filtres.statut == s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>
+    <span>Priorité</span>
+    <select name="priorite">
+      <option value="">— Toutes —</option>
+      {% for p in priorites %}
+        <option value="{{ p }}" {% if filtres.priorite == p %}selected{% endif %}>{{ p }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <div class="filtres-actions">
+    <button type="submit" class="btn">Filtrer</button>
+    <a class="btn btn-link" href="{{ url_for('watchlist.liste') }}">Réinitialiser</a>
+  </div>
+</form>
+
+{% if watchlist %}
+<div class="grille-cartes">
+  {% for w in watchlist %}
+    <article class="carte-watch carte-watch-{{ w.priorite or 'moyenne' }}">
+      <header>
+        <div>
+          <span class="pill pill-priorite-{{ w.priorite or 'moyenne' }}">{{ w.priorite or 'moyenne' }}</span>
+          {% if w.statut and w.statut != 'actif' %}
+            <span class="pill pill-statut pill-statut-{{ w.statut }}">{{ w.statut|replace('_', ' ') }}</span>
+          {% endif %}
+        </div>
+        <div class="actions-watch">
+          {% if not w.titre_id %}
+            <form method="post" action="{{ url_for('watchlist.promouvoir', watch_id=w.id) }}" style="display:inline"
+                  onsubmit="return confirm('Créer une fiche titre dans le catalogue à partir de cette watch ?\n(tentera un enrichissement Yahoo Finance si ticker présent)');">
+              <button type="submit" class="btn-icone" title="Promouvoir en titre du catalogue">⬆</button>
+            </form>
+          {% endif %}
+          <a href="{{ url_for('watchlist.editer', watch_id=w.id) }}" title="Éditer">✎</a>
+          <form method="post" action="{{ url_for('watchlist.supprimer', watch_id=w.id) }}" style="display:inline" onsubmit="return confirm('Retirer cet élément de la watchlist ?');">
+            <button type="submit" class="btn-icone" title="Supprimer">🗑</button>
+          </form>
+        </div>
+      </header>
+      <h2>
+        {% if w.ticker %}<code>{{ w.ticker }}</code> {% endif %}
+        {{ w.nom or w.ticker or '—' }}
+      </h2>
+      {% if w.titre_id and titres.get(w.titre_id) %}
+        <p class="muted" style="font-size: 0.82rem; margin: 0.15rem 0 0.4rem">
+          🔗 Lié au titre
+          <a href="{{ url_for('titres.detail', titre_id=w.titre_id) }}"><code>{{ titres[w.titre_id].ticker }}</code></a>
+        </p>
+      {% endif %}
+      <p class="muted carte-meta">
+        {% if w.marche %}{{ w.marche }}{% endif %}
+        {% if w.devise %} · {{ w.devise }}{% endif %}
+        {% if w.cap_boursiere %} · {{ w.cap_boursiere }}{% endif %}
+        {% if w.compte_cible %} · cible {{ comptes.get(w.compte_cible, {}).get('nom', w.compte_cible) }}{% endif %}
+      </p>
+      {% if w.these_lt %}
+        <p class="carte-these">{{ w.these_lt }}</p>
+      {% endif %}
+      {# Devise du palier : devise du titre lié si présent, sinon devise watch, sinon EUR. #}
+      {% set titre_lie = titres.get(w.titre_id) if w.titre_id else None %}
+      {% set devise_palier = (titre_lie.devise if titre_lie else None) or w.devise or 'EUR' %}
+      {% set symbole = '$' if devise_palier == 'USD' else ('€' if devise_palier == 'EUR' else devise_palier) %}
+
+      {# Ordres actifs (en_attente) : prioritaires sur les paliers indicatifs #}
+      {% set ordres_attente = (w.ordres_actifs or [])|selectattr('statut', 'equalto', 'en_attente')|list %}
+      {% if ordres_attente %}
+        <div class="paliers" style="border-left: 3px solid var(--vert)">
+          <strong>📋 Ordres actifs :</strong>
+          <ul>
+            {% for o in ordres_attente %}
+              <li>
+                <strong>{{ o.prix_limite }} {{ symbole }}</strong>
+                × {{ o.quantite|quantite }}
+                {% if o.validite %}
+                  <span class="muted">— validité {{ o.validite|date_courte }}</span>
+                {% endif %}
+                {% if o.note %}<div><small class="muted">{{ o.note }}</small></div>{% endif %}
+                <div class="actions-ordre" style="margin-top: 0.3rem">
+                  {% if w.titre_id %}
+                    <a class="btn-icone" title="Marquer exécuté (crée un mouvement d'achat)"
+                       href="{{ url_for('mouvements.creer', type_mouvement='achat',
+                              source_ordre_watch_id=w.id, source_ordre_id=o.id,
+                              compte_id=w.compte_cible, titre_id=w.titre_id,
+                              quantite=o.quantite, prix_unitaire=o.prix_limite,
+                              devise=w.devise) }}">✓ Exécuté</a>
+                  {% else %}
+                    <span class="muted" title="Lier d'abord la watch à un titre (bouton ⬆ Promouvoir)">⚠ pas de titre lié</span>
+                  {% endif %}
+                  <form method="post" style="display:inline"
+                        action="{{ url_for('watchlist.annuler_ordre', watch_id=w.id, ordre_id=o.id) }}"
+                        onsubmit="return confirm('Annuler cet ordre ?');">
+                    <button type="submit" class="btn-icone" title="Annuler l'ordre">✗ Annuler</button>
+                  </form>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      {% if w.paliers_rachat %}
+        <div class="paliers">
+          <strong>Plan de rachat indicatif :</strong>
+          <ul>
+            {% for p in w.paliers_rachat %}
+              <li>
+                <strong>{{ p.prix }} {{ symbole }}</strong>
+                {% if p.tranche %} — {{ p.tranche }}{% endif %}
+                {% if p.commentaire %} <span class="muted">({{ p.commentaire }})</span>{% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+      {% if w.echeance_abandon %}
+        <p class="muted echeance">⏳ Réévaluer avant le <strong>{{ w.echeance_abandon|date_fr }}</strong></p>
+      {% endif %}
+      {% if w.notes %}
+        <p class="muted carte-notes">{{ w.notes }}</p>
+      {% endif %}
+      <footer class="muted">Ajouté le {{ w.ajoute_le|date_fr }}</footer>
+    </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <span class="empty-icon">🎯</span>
+  <h3>La watchlist est vide</h3>
+  <p>Ajoute des titres à surveiller, des prospections ou des plans de rachat.</p>
+  <a class="btn btn-primary" href="{{ url_for('watchlist.creer') }}">+ Ajouter à la watchlist</a>
+</div>
+{% endif %}
+{% endblock %}

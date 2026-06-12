@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}Prédictions — Suivi Portefeuille{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>Prédictions</h1>
+    <p class="muted">Paris directionnels datés, sans capital engagé — outil de calibration du jugement.</p>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('predictions.nouvelle') }}">+ Nouvelle prédiction</a>
+</section>
+
+{# --- Bandeau statistiques --- #}
+<section class="stats-bandeau">
+  <div class="stat-bloc">
+    <span class="stat-label">Taux de réussite global</span>
+    <span class="stat-valeur">
+      {% if stats.taux_global_pct is not none %}
+        {{ stats.taux_global_pct }} %
+      {% else %}
+        —
+      {% endif %}
+    </span>
+    <span class="stat-detail muted">
+      {{ stats.total_justes }} / {{ stats.total_evaluees }} évaluées
+    </span>
+  </div>
+  {% for sens_key in ['hausse', 'baisse'] %}
+    {% set s = stats.par_sens[sens_key] %}
+    <div class="stat-bloc">
+      <span class="stat-label">{{ libelles_sens[sens_key] }}</span>
+      <span class="stat-valeur">
+        {% if s.taux_pct is not none %}{{ s.taux_pct }} %{% else %}—{% endif %}
+      </span>
+      <span class="stat-detail muted">{{ s.justes }} / {{ s.total }}</span>
+    </div>
+  {% endfor %}
+</section>
+
+{# --- À évaluer : échéances passées encore en_cours --- #}
+{% if a_evaluer %}
+<section class="encart-alerte">
+  <h2>À évaluer ({{ a_evaluer|length }})</h2>
+  <p class="muted">Échéance dépassée mais statut encore « en cours ». Saisis le cours observé pour clore.</p>
+  <ul class="liste-a-evaluer">
+    {% for p in a_evaluer %}
+      <li>
+        <a href="{{ url_for('predictions.evaluer', prediction_id=p.id) }}">
+          <strong>{{ p.ticker }}</strong> — {{ libelles_sens[p.sens] }} prévue le {{ p.date_prediction|date_fr }},
+          échéance {{ p.date_echeance|date_fr }}
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{# --- Filtres --- #}
+<form method="get" class="filtres-bar">
+  <label>
+    Statut
+    <select name="statut" onchange="this.form.submit()">
+      <option value="">Tous</option>
+      {% for k, lbl in libelles_statuts.items() %}
+        <option value="{{ k }}" {% if filtre_statut == k %}selected{% endif %}>{{ lbl }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>
+    Sens
+    <select name="sens" onchange="this.form.submit()">
+      <option value="">Tous</option>
+      {% for k, lbl in libelles_sens.items() %}
+        <option value="{{ k }}" {% if filtre_sens == k %}selected{% endif %}>{{ lbl }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  {% if filtre_statut or filtre_sens %}
+    <a href="{{ url_for('predictions.liste') }}" class="btn-link">Réinitialiser</a>
+  {% endif %}
+</form>
+
+{# --- Tableau --- #}
+{% if predictions %}
+<table class="table-predictions">
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Titre</th>
+      <th>Sens</th>
+      <th class="num">Conv.</th>
+      <th class="num">Cours réf.</th>
+      <th>Échéance</th>
+      <th class="num">Cours éch.</th>
+      <th class="num">Écart %</th>
+      <th>Résultat</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in predictions %}
+      {% set est_echue = p.statut == 'en_cours' and p.date_echeance <= (now_date().isoformat()) %}
+      <tr class="
+        {% if p.resultat == 'juste' %}ligne-juste
+        {% elif p.resultat == 'faux' %}ligne-faux
+        {% elif est_echue %}ligne-echue
+        {% endif %}">
+        <td>{{ p.date_prediction|date_fr }}</td>
+        <td>
+          <strong>{{ p.ticker }}</strong>
+          <span class="muted"> · {{ p.nom }}</span>
+        </td>
+        <td>
+          <span class="badge badge-{{ p.sens }}">{{ libelles_sens[p.sens] }}</span>
+        </td>
+        <td class="num">{{ p.conviction }}/5</td>
+        <td class="num">{{ p.cours_reference }} {{ p.devise }}</td>
+        <td>
+          {{ p.date_echeance|date_fr }}
+          {% if est_echue %}<br><small class="muted">échue</small>{% endif %}
+        </td>
+        <td class="num">
+          {% if p.cours_echeance %}{{ p.cours_echeance }} {{ p.devise }}{% else %}—{% endif %}
+        </td>
+        <td class="num">
+          {% if p.ecart_pct is not none %}{{ p.ecart_pct }} %{% else %}—{% endif %}
+        </td>
+        <td>
+          {% if p.resultat %}
+            <span class="badge badge-{{ p.resultat }}">{{ libelles_resultats[p.resultat] }}</span>
+          {% else %}
+            <span class="muted">en cours</span>
+          {% endif %}
+        </td>
+        <td class="actions">
+          {% if p.statut == 'en_cours' %}
+            <a href="{{ url_for('predictions.evaluer', prediction_id=p.id) }}" class="btn-link">Évaluer</a>
+            <a href="{{ url_for('predictions.editer', prediction_id=p.id) }}" class="btn-link">Modifier</a>
+          {% endif %}
+          <form method="post" action="{{ url_for('predictions.supprimer', prediction_id=p.id) }}"
+                onsubmit="return confirm('Supprimer cette prédiction ?');" style="display:inline">
+            <button type="submit" class="btn-link danger">Supprimer</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+  <span class="empty-icon">🎯</span>
+  <h3>Aucune prédiction</h3>
+  <p>Note tes paris directionnels (hausse / baisse) pour calibrer ton jugement dans le temps.</p>
+  <a class="btn btn-primary" href="{{ url_for('predictions.nouvelle') }}">+ Nouvelle prédiction</a>
+</div>
+{% endif %}
+{% endblock %}
