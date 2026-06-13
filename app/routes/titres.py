@@ -26,6 +26,7 @@ from app.services.mouvements import lister as lister_mouvements
 from app.services.notes_titres import LIBELLES_TYPES as LIBELLES_NOTE
 from app.services.plus_values import cumul_plus_values
 from app.services.pru import calculer_pru, quantite_disponible
+from app.services import suggestions_ia as svc_suggestions
 
 
 bp = Blueprint("titres", __name__, url_prefix="/titres")
@@ -164,6 +165,7 @@ def detail(titre_id: str):
         dividendes_eur=dividendes_eur,
         nb_dividendes=nb_dividendes,
         journal=journal,
+        suggestions_ia=svc_suggestions.lister(depot, titre_id=titre_id),
         evenements_a_venir=evenements_a_venir,
         types_note=LIBELLES_NOTE,
         types_evenement=LIBELLES_EVENEMENT,

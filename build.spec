@@ -50,7 +50,9 @@ a = Analysis(
     # yfinance/pandas/numpy : dépendance OPTIONNELLE (métadonnées Yahoo), non
     # embarquée volontairement (offline-first + poids). La feature se dégrade
     # proprement en son absence (enrichir_pour_titre renvoie None).
-    excludes=["yfinance", "pandas", "numpy"],
+    # mcp/anthropic : le serveur MCP (tools/mcp_server.py) est un outil dev
+    # local, jamais distribué dans le .exe des amis.
+    excludes=["yfinance", "pandas", "numpy", "mcp", "anthropic"],
     noarchive=False,
 )
 

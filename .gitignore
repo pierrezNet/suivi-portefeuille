@@ -17,6 +17,7 @@ notes_titres.json
 virements_programmes.json
 predictions.json
 snapshots.json
+suggestions_ia.json
 meta.json
 
 # --- Environnement Python ---
@@ -32,3 +33,6 @@ build/
 
 # --- Outillage local ---
 .claude/
+# Config MCP locale : chemins absolus propres à la machine d'Emmanuel,
+# inutile aux amis (serveur MCP exclu du .exe).
+.mcp.json

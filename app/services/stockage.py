@@ -66,6 +66,7 @@ class Depot:
         "virements_programmes": "virements_programmes.json",
         "predictions": "predictions.json",
         "snapshots": "snapshots.json",
+        "suggestions_ia": "suggestions_ia.json",
     }
 
     def __init__(self, dossier_data: Path) -> None:

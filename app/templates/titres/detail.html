@@ -179,11 +179,88 @@
     });
     document.getElementById('champ-contenu').focus();
   }
+  function basculerPromptIA() {
+    document.getElementById('prompt-ia').classList.toggle('caché');
+  }
+  function copierPromptIA() {
+    const t = document.getElementById('texte-prompt-ia');
+    t.select();
+    const ok = () => document.getElementById('copie-ok').classList.remove('caché');
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(t.value).then(ok).catch(ok);
+    } else {
+      document.execCommand('copy');
+      ok();
+    }
+  }
 </script>
+
+{% if suggestions_ia %}
+<section class="bloc">
+  <h2>💡 Suggestions IA en attente ({{ suggestions_ia|length }})</h2>
+  <p class="muted">
+    Propositions de Claude (via MCP). Rien n'est appliqué sans toi : édite le
+    texte si besoin, puis <strong>Accepter</strong> (→ journal ou thèse) ou
+    <strong>Rejeter</strong>.
+  </p>
+  <ol class="suggestions-ia" style="list-style:none;padding-left:0;display:grid;gap:1rem">
+    {% for s in suggestions_ia %}
+      <li class="suggestion-ia" style="border-left:4px solid var(--jaune);padding:.7rem 1rem;background:#fff8e1">
+        <header style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+          <strong>
+            {% if s.cible == 'these' %}
+              🧠 Révision de thèse — <code>{{ s.champ_these }}</code>
+            {% else %}
+              📝 Note — {{ types_note.get(s.type_note, s.type_note or 'observation') }}
+            {% endif %}
+          </strong>
+          <small class="muted">proposé le {{ s.date_proposition|date_fr }} · {{ s.source }}</small>
+        </header>
+        {% if s.commentaire %}
+          <p class="muted" style="margin:.3rem 0"><em>{{ s.commentaire }}</em></p>
+        {% endif %}
+        <form method="post"
+              action="{{ url_for('suggestions_ia.accepter', titre_id=titre.id, suggestion_id=s.id) }}">
+          <textarea name="contenu" rows="4" style="width:100%;box-sizing:border-box">{{ s.contenu }}</textarea>
+          <div style="margin-top:.4rem;display:flex;gap:.6rem;align-items:center">
+            <button type="submit" class="btn">✓ Accepter</button>
+            <span class="muted" style="font-size:.85rem">
+              {% if s.cible == 'these' %}met à jour la thèse (ancienne version archivée){% else %}ajoute au journal de bord{% endif %}
+            </span>
+          </div>
+        </form>
+        <form method="post" style="display:inline;margin-top:.3rem"
+              action="{{ url_for('suggestions_ia.rejeter', titre_id=titre.id, suggestion_id=s.id) }}"
+              onsubmit="return confirm('Rejeter cette suggestion ?');">
+          <button type="submit" class="btn-link">✗ Rejeter</button>
+        </form>
+      </li>
+    {% endfor %}
+  </ol>
+</section>
+{% endif %}
 
 <div class="grille-2cols">
   <section class="bloc">
     <h2>Thèse long terme</h2>
+    <button type="button" class="btn-link" onclick="basculerPromptIA()"
+            title="Prépare un message à coller dans Claude pour challenger cette thèse">
+      🤖 Faire challenger par l'IA
+    </button>
+    <div id="prompt-ia" class="caché" style="margin:.5rem 0;padding:.6rem;background:#f5f7ff;border-left:3px solid var(--bleu-france)">
+      <p class="muted" style="margin:0 0 .4rem;font-size:.85rem">
+        Copie ce message dans <strong>une IA</strong> (Claude, ChatGPT, Gemini…) :
+      </p>
+      <textarea id="texte-prompt-ia" readonly rows="9" style="width:100%;box-sizing:border-box;font-size:.85rem">Voici ma thèse d'investissement sur {{ titre.nom }} ({{ titre.ticker }}).
+THÈSE LONG TERME : {{ titre.these_lt or '(non renseignée)' }}
+SIGNAUX POSITIFS : {{ titre.signaux_mt_positifs or '(aucun)' }}
+SIGNAUX NÉGATIFS : {{ titre.signaux_mt_negatifs or '(aucun)' }}
+Cherche l'actualité récente de {{ titre.ticker }} ({{ titre.nom }}), puis challenge cette thèse : qu'est-ce qui la fragilise ou la confirme ? Propose une révision UNIQUEMENT si c'est matériel (ne touche pas si ~95 % reste valable). Écris en français clair, avec les termes techniques expliqués entre parenthèses, sans lignes blanches superflues. Si tu as accès au serveur MCP « suivi-portefeuille », dépose directement la proposition ; sinon, donne-moi le texte révisé à recopier dans la fiche.</textarea>
+      <div style="margin-top:.4rem">
+        <button type="button" class="btn" onclick="copierPromptIA()">📋 Copier</button>
+        <span id="copie-ok" class="caché muted" style="margin-left:.5rem">copié ✓</span>
+      </div>
+    </div>
     {% if titre.these_lt %}
       <p style="white-space: pre-wrap">{{ titre.these_lt }}</p>
     {% else %}

@@ -1,0 +1,8 @@
+# Dépendance OPTIONNELLE — uniquement pour le serveur MCP (tools/mcp_server.py),
+# qui expose tes données à Claude (Desktop/Code). NON requise par l'app Flask,
+# NON embarquée dans le .exe. Installer dans le venv :
+#   .venv/bin/pip install -r requirements-mcp.txt
+#
+# Pas de paquet `anthropic` ici : notre code n'appelle jamais l'API Claude —
+# c'est Claude (le client MCP) qui pilote.
+mcp>=1.0
