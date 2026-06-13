@@ -12,7 +12,7 @@ from datetime import date as _date
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
-from app.services import fiscal, repartition, snapshots, virements_programmes
+from app.services import fiscal, predictions, repartition, snapshots, virements_programmes
 from app.services.evenements import LIBELLES_TYPES as LIBELLES_EVENEMENT
 from app.services.evenements import lister as lister_evenements
 from app.services.pru import calculer_pru
@@ -206,7 +206,7 @@ def construire(
             }
         )
 
-    # Ordres d'achat actifs en attente dont la validité tombe dans l'horizon
+    # Ordres actifs (achat ou vente) en attente dont la validité tombe dans l'horizon
     for w in watchlist_brut:
         for ordre in w.get("ordres_actifs") or []:
             if ordre.get("statut") != "en_attente":
@@ -218,10 +218,11 @@ def construire(
             nom = w.get("nom") or ticker or "—"
             devise = (w.get("devise") or "EUR").upper()
             symbole = "$" if devise == "USD" else ("€" if devise == "EUR" else devise)
+            est_vente = ordre.get("sens") == "vente"
             agenda.append(
                 {
                     "date": validite,
-                    "type_libelle": "Ordre d'achat actif",
+                    "type_libelle": "Ordre de vente actif" if est_vente else "Ordre d'achat actif",
                     "ticker": ticker,
                     "libelle": (
                         f"Validité ordre {nom} — {ordre.get('prix_limite')} "
@@ -233,6 +234,41 @@ def construire(
             )
 
     agenda.sort(key=lambda i: i["date"])
+
+    # Rappel LECTURE SEULE : tous les ordres limites actifs (achat ET vente),
+    # sans filtre d'horizon — pour se rappeler ses ordres sans ouvrir le broker.
+    ordres_actifs: list[dict] = []
+    for w in watchlist_brut:
+        for ordre in w.get("ordres_actifs") or []:
+            if ordre.get("statut") != "en_attente":
+                continue
+            ordres_actifs.append({
+                "ticker": w.get("ticker") or "",
+                "nom": w.get("nom") or w.get("ticker") or "—",
+                "sens": ordre.get("sens") or "achat",
+                "prix_limite": ordre.get("prix_limite"),
+                "quantite": ordre.get("quantite"),
+                "validite": ordre.get("validite") or "",
+                "note": ordre.get("note", ""),
+                "devise": (w.get("devise") or "EUR").upper(),
+            })
+    ordres_actifs.sort(key=lambda o: o.get("validite") or "9999")
+
+    # Rappel LECTURE SEULE : prédictions en cours (paris datés non encore évalués).
+    predictions_en_cours = [
+        {
+            "ticker": p.get("ticker") or "",
+            "nom": p.get("nom") or p.get("ticker") or "—",
+            "sens": p.get("sens"),
+            "cours_reference": p.get("cours_reference"),
+            "date_echeance": p.get("date_echeance") or "",
+            "conviction": p.get("conviction"),
+            "horizon_jours": p.get("horizon_jours"),
+            "devise": (p.get("devise") or "EUR").upper(),
+            "raisonnement": p.get("raisonnement", ""),
+        }
+        for p in predictions.lister(depot, statut="en_cours")
+    ]
 
     # Watchlist priorité haute (max 6)
     watchlist_haute = lister_watchlist(depot, priorite="haute")[:6]
@@ -264,6 +300,8 @@ def construire(
         "stats_annee": stats_annee,
         "agenda": agenda,
         "agenda_horizon_jours": jours_agenda,
+        "ordres_actifs": ordres_actifs,
+        "predictions_en_cours": predictions_en_cours,
         "watchlist_haute": watchlist_haute,
         "titres": titres,
         "virements_rattrapes": virements_rattrapes,

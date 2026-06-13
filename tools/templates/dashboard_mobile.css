@@ -305,3 +305,9 @@ footer.bas-page {
 .position-footer strong {
   font-size: 0.92rem;
 }
+
+/* Rappels (ordres limites + prédictions) — liseré couleur, réutilise .agenda */
+.agenda li.ordre-achat,
+.agenda li.prediction-hausse { border-left: 3px solid var(--vert); padding-left: 0.5rem; }
+.agenda li.ordre-vente,
+.agenda li.prediction-baisse { border-left: 3px solid var(--rouge); padding-left: 0.5rem; }

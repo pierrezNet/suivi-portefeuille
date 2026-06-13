@@ -293,6 +293,48 @@
       {% endif %}
     </section>
 
+    {# Rappel LECTURE SEULE : ordres limites en cours (pour ne pas ouvrir le broker) #}
+    <section class="bloc">
+      <h2>📋 Ordres limites actifs</h2>
+      {% if ordres_actifs %}
+        <ul class="watchlist-aside">
+          {% for o in ordres_actifs %}
+            {% set symbole = '$' if o.devise == 'USD' else ('€' if o.devise == 'EUR' else o.devise) %}
+            <li style="border-left:3px solid {{ 'var(--rouge)' if o.sens == 'vente' else 'var(--vert)' }};padding-left:.5rem">
+              <span class="pill">{{ 'Vente' if o.sens == 'vente' else 'Achat' }}</span>
+              {% if o.ticker %}<code>{{ o.ticker }}</code>{% endif %}
+              <strong>{{ o.nom }}</strong>
+              <div><small class="muted">{{ o.prix_limite }} {{ symbole }} × {{ o.quantite|quantite }}{% if o.validite %} — validité {{ o.validite|date_courte }}{% set j = o.validite|jours_avant %}{% if j is not none %} ({{ j }} j){% endif %}{% endif %}</small></div>
+              {% if o.note %}<small class="muted">{{ o.note|truncate(70) }}</small>{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted">Aucun ordre limite en cours.</p>
+      {% endif %}
+    </section>
+
+    {# Rappel LECTURE SEULE : prédictions en cours #}
+    <section class="bloc">
+      <h2>🔮 Prédictions en cours</h2>
+      {% if predictions_en_cours %}
+        <ul class="watchlist-aside">
+          {% for p in predictions_en_cours %}
+            {% set symbole = '$' if p.devise == 'USD' else ('€' if p.devise == 'EUR' else p.devise) %}
+            <li style="border-left:3px solid {{ 'var(--rouge)' if p.sens == 'baisse' else 'var(--vert)' }};padding-left:.5rem">
+              {{ '📉 Baisse' if p.sens == 'baisse' else '📈 Hausse' }}
+              {% if p.ticker %}<code>{{ p.ticker }}</code>{% endif %}
+              <strong>{{ p.nom }}</strong>
+              <div><small class="muted">réf. {{ p.cours_reference }} {{ symbole }} · échéance {{ p.date_echeance|date_courte }}{% set j = p.date_echeance|jours_avant %}{% if j is not none %} ({{ j }} j){% endif %} · {{ '★' * (p.conviction or 0) }}{{ '☆' * (5 - (p.conviction or 0)) }}</small></div>
+            </li>
+          {% endfor %}
+        </ul>
+        <p><a class="btn-link" href="{{ url_for('predictions.liste') }}">Toutes les prédictions →</a></p>
+      {% else %}
+        <p class="muted">Aucune prédiction en cours.</p>
+      {% endif %}
+    </section>
+
     {# Watchlist priorité haute #}
     <section class="bloc">
       <h2>🎯 Watchlist — priorité haute</h2>

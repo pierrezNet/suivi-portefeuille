@@ -158,3 +158,67 @@ def test_aucun_titre_valorisable_renvoie_zero(tmp_path):
     assert data["age_cours_max_jours"] is None
     assert data["nb_positions_sans_cours"] == 0
     assert data["cours_a_actualiser"] is False
+
+
+# --- Rappels lecture seule : ordres actifs + prédictions en cours ----------
+
+
+def _depot_rappels(tmp_path):
+    d = Depot(tmp_path)
+    d.enregistrer("comptes", [{"id": "cto", "nom": "CTO", "type": "CTO", "devise_principale": "EUR"}])
+    d.enregistrer("titres", [])
+    d.enregistrer("mouvements", [])
+    d.enregistrer("evenements", [])
+    d.enregistrer("virements_programmes", [])
+    d.enregistrer("watchlist", [{
+        "id": "w1", "ticker": "STM", "nom": "STMicro", "devise": "EUR",
+        "ordres_actifs": [
+            # achat dont la validité est LOIN (hors horizon agenda 60 j)
+            {"id": "o1", "prix_limite": "40", "quantite": 2, "sens": "achat",
+             "statut": "en_attente", "validite": "2027-12-31"},
+            # ordre de VENTE
+            {"id": "o2", "prix_limite": "55", "quantite": 1, "sens": "vente",
+             "statut": "en_attente", "validite": "2026-07-10"},
+            # annulé → exclu
+            {"id": "o3", "prix_limite": "30", "quantite": 1, "sens": "achat",
+             "statut": "annule"},
+        ],
+    }])
+    d.enregistrer("predictions", [
+        {"id": "p1", "ticker": "NVDA", "nom": "Nvidia", "sens": "hausse",
+         "cours_reference": "200", "date_echeance": "2026-12-01", "conviction": 3,
+         "horizon_jours": 180, "devise": "USD", "statut": "en_cours",
+         "date_prediction": "2026-06-01"},
+        {"id": "p2", "ticker": "X", "nom": "X", "sens": "baisse",
+         "cours_reference": "10", "date_echeance": "2026-05-01", "conviction": 2,
+         "statut": "evaluee", "date_prediction": "2026-01-01"},
+    ])
+    return d
+
+
+def test_construire_ordres_actifs_tous_sens_et_hors_horizon(tmp_path):
+    data = construire(_depot_rappels(tmp_path), rattraper_virements=False,
+                      aujourd_hui=date(2026, 6, 10))
+    ordres = data["ordres_actifs"]
+    assert len(ordres) == 2  # les 2 en_attente, pas l'annulé
+    assert {o["sens"] for o in ordres} == {"achat", "vente"}
+    # l'ordre hors horizon (2027) est présent — contrairement à l'agenda qui le filtre
+    assert any(o["validite"] == "2027-12-31" for o in ordres)
+
+
+def test_construire_predictions_en_cours_seules(tmp_path):
+    data = construire(_depot_rappels(tmp_path), rattraper_virements=False,
+                      aujourd_hui=date(2026, 6, 10))
+    preds = data["predictions_en_cours"]
+    assert len(preds) == 1  # la "evaluee" est exclue
+    assert preds[0]["ticker"] == "NVDA"
+
+
+def test_dashboard_affiche_ordres_et_predictions(tmp_path):
+    from app import create_app
+
+    app = create_app()
+    app.config.update(DEPOT=_depot_rappels(tmp_path), TESTING=True, SECRET_KEY="t")
+    html = app.test_client().get("/").get_data(as_text=True)
+    assert "Ordres limites actifs" in html and "STM" in html
+    assert "Prédictions en cours" in html and "NVDA" in html

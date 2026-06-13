@@ -337,6 +337,70 @@
     `;
   }
 
+  function renderOrdresActifs(data) {
+    if (!data.ordres_actifs || data.ordres_actifs.length === 0) return "";
+    const items = data.ordres_actifs
+      .map((o) => {
+        const n = joursAvant(o.validite);
+        const restant = n !== null ? `<small>${texteJours(n)}</small>` : "";
+        const symbole = o.devise === "USD" ? "$" : (o.devise === "EUR" ? "€" : escapeHtml(o.devise || ""));
+        const sens = o.sens === "vente" ? "Vente" : "Achat";
+        const note = o.note ? `<small>${escapeHtml(o.note)}</small>` : "";
+        return `
+          <li class="ordre-${o.sens === "vente" ? "vente" : "achat"}">
+            <div class="date">
+              <strong>${o.validite ? fmtDate(o.validite) : "—"}</strong>
+              ${restant}
+            </div>
+            <div class="corps">
+              <span class="type-libelle">Ordre — ${sens}</span> <code>${escapeHtml(o.ticker)}</code>
+              <div>${escapeHtml(String(o.prix_limite))} ${symbole} × ${fmtQuantite(o.quantite)}</div>
+              ${note}
+            </div>
+          </li>
+        `;
+      })
+      .join("");
+    return `
+      <section class="bloc">
+        <h2>📋 Ordres limites actifs</h2>
+        <ul class="agenda">${items}</ul>
+      </section>
+    `;
+  }
+
+  function renderPredictions(data) {
+    if (!data.predictions_en_cours || data.predictions_en_cours.length === 0) return "";
+    const items = data.predictions_en_cours
+      .map((p) => {
+        const n = joursAvant(p.date_echeance);
+        const restant = n !== null ? `<small>${texteJours(n)}</small>` : "";
+        const symbole = p.devise === "USD" ? "$" : (p.devise === "EUR" ? "€" : escapeHtml(p.devise || ""));
+        const sens = p.sens === "baisse" ? "📉 Baisse" : "📈 Hausse";
+        const conv = p.conviction || 0;
+        const etoiles = "★".repeat(conv) + "☆".repeat(5 - conv);
+        return `
+          <li class="prediction-${p.sens === "baisse" ? "baisse" : "hausse"}">
+            <div class="date">
+              <strong>${p.date_echeance ? fmtDate(p.date_echeance) : "—"}</strong>
+              ${restant}
+            </div>
+            <div class="corps">
+              <span class="type-libelle">${sens}</span> <code>${escapeHtml(p.ticker)}</code>
+              <div>réf. ${escapeHtml(String(p.cours_reference))} ${symbole} · ${etoiles}</div>
+            </div>
+          </li>
+        `;
+      })
+      .join("");
+    return `
+      <section class="bloc">
+        <h2>🔮 Prédictions en cours</h2>
+        <ul class="agenda">${items}</ul>
+      </section>
+    `;
+  }
+
   function afficher(data) {
     document.getElementById("genere-le").textContent =
       "Synchronisé le " + (data.genere_le_fr || "—");
@@ -346,6 +410,8 @@
       renderCamemberts(data) +
       renderEquity(data) +
       `<section><h2>Comptes</h2>${renderComptes(data)}</section>` +
+      renderOrdresActifs(data) +
+      renderPredictions(data) +
       renderAgenda(data) +
       renderWatchlist(data);
   }

@@ -68,7 +68,8 @@ def test_donnees_chiffrees_dechiffrables_avec_le_mdp(repo_git, data_exemple, mon
     publier(repo=repo_git, mot_passe=MDP_TEST, data_dir=data_exemple)
     paquet = json.loads((repo_git / "data.enc.json").read_text(encoding="utf-8"))
     data = chiffrement.dechiffrer(paquet, MDP_TEST)
-    cles = {"total_cash", "comptes", "stats_annee", "agenda", "genere_le_fr"}
+    cles = {"total_cash", "comptes", "stats_annee", "agenda", "genere_le_fr",
+            "ordres_actifs", "predictions_en_cours"}
     assert cles.issubset(set(data.keys()))
 
 
