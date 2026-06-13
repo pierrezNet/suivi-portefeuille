@@ -13,6 +13,7 @@ from app.services.stockage import Depot
 PRIORITES = ("haute", "moyenne", "basse", "veille")
 STATUTS = ("actif", "renforcement", "rachat_potentiel", "achat_souhaite", "ipo_attendue", "abandonne")
 STATUTS_ORDRE = ("en_attente", "execute", "annule", "expire")
+SENS_ORDRE = ("achat", "vente")
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -72,11 +73,15 @@ def _parse_ordres(donnees) -> list[dict]:
             statut = _str_propre(o.get("statut")) or "en_attente"
             if statut not in STATUTS_ORDRE:
                 raise ValueError(f"statut ordre invalide : {statut}")
+            sens = _str_propre(o.get("sens")) or "achat"
+            if sens not in SENS_ORDRE:
+                raise ValueError(f"sens ordre invalide : {sens}")
             ordre = {
                 "id": _str_propre(o.get("id"))
                 or "o-" + uuid.uuid4().hex[:10],
                 "prix_limite": prix.replace(",", "."),
                 "quantite": int(qte_dec) if qte_dec == qte_dec.to_integral_value() else str(qte_dec),
+                "sens": sens,
                 "statut": statut,
                 "note": _str_propre(o.get("note")),
                 "date_creation": _str_propre(o.get("date_creation"))

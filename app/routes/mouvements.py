@@ -115,6 +115,7 @@ def creer(type_mouvement: str):
                 "titre_id",
                 "quantite",
                 "prix_unitaire",
+                "prix_unitaire_vente",
                 "devise",
                 "date",
                 "source_ordre_watch_id",
@@ -140,11 +141,12 @@ def creer(type_mouvement: str):
     if request.method == "POST":
         try:
             mouvement = svc.creer(depot, type_mouvement, donnees)
-            # Si le mouvement provient d'un ordre, marquer cet ordre exécuté
+            # Si le mouvement provient d'un ordre (achat ou vente), marquer cet
+            # ordre exécuté et le lier au mouvement créé.
             if (
                 source_watch_id
                 and source_ordre_id
-                and type_mouvement == "achat"
+                and type_mouvement in ("achat", "vente")
             ):
                 from app.services.watchlist import marquer_ordre
 

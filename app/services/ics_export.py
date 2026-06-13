@@ -144,7 +144,7 @@ def construire_calendrier(depot: Depot) -> Calendar:
             rappel_jours=RAPPEL_ECHEANCE_WATCHLIST_JOURS,
         )
 
-    # 3. Ordres d'achat actifs en attente
+    # 3. Ordres actifs (achat ou vente) en attente
     for w in depot.charger("watchlist"):
         for ordre in w.get("ordres_actifs") or []:
             if ordre.get("statut") != "en_attente":
@@ -156,15 +156,16 @@ def construire_calendrier(depot: Depot) -> Calendar:
             nom = w.get("nom") or ticker or "—"
             devise = (w.get("devise") or "EUR").upper()
             symbole = "$" if devise == "USD" else ("€" if devise == "EUR" else devise)
+            libelle_sens = "vente" if ordre.get("sens") == "vente" else "achat"
             sommaire_parts = []
             if ticker:
                 sommaire_parts.append(f"[{ticker}]")
             sommaire_parts.append(
-                f"Validité ordre {ordre.get('prix_limite')} {symbole}"
+                f"Validité ordre de {libelle_sens} {ordre.get('prix_limite')} {symbole}"
                 f" × {ordre.get('quantite')}"
             )
             description_parts = [
-                f"Ordre d'achat actif sur {nom}",
+                f"Ordre de {libelle_sens} actif sur {nom}",
                 f"Prix limite : {ordre.get('prix_limite')} {symbole}",
                 f"Quantité : {ordre.get('quantite')}",
             ]

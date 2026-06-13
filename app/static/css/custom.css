@@ -633,7 +633,16 @@ body {
   grid-template-columns: 1fr 1fr 2fr;
   gap: 0.5rem;
 }
-.paliers-grille label { display: flex; flex-direction: column; }
+.paliers-grille label { display: flex; flex-direction: column; min-width: 0; }
+/* min-width:0 + width:100% : les colonnes peuvent rétrécir sous la largeur
+   intrinsèque des inputs number/date (sinon la grille déborde de l'écran). */
+.paliers-grille input,
+.paliers-grille select,
+.paliers-grille textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
 .paliers-grille span {
   font-size: 0.78rem;
   color: var(--gris-muet);

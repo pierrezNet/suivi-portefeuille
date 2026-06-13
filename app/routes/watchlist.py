@@ -62,6 +62,7 @@ def _fusionner_ordres(donnees: dict, historique_archive: list[dict]) -> list[dic
             "quantite": donnees.get("ordre_quantite", ""),
             "validite": donnees.get("ordre_validite", ""),
             "note": donnees.get("ordre_note", ""),
+            "sens": donnees.get("ordre_sens", "achat"),
             "statut": "en_attente",
             "id": donnees.get("ordre_id") or "",
             "date_creation": donnees.get("ordre_date_creation") or "",
@@ -132,6 +133,7 @@ def editer(watch_id: str):
             donnees["ordre_quantite"] = str(actif.get("quantite", ""))
             donnees["ordre_validite"] = actif.get("validite", "")
             donnees["ordre_note"] = actif.get("note", "")
+            donnees["ordre_sens"] = actif.get("sens", "achat")
             donnees["ordre_id"] = actif.get("id", "")
             donnees["ordre_date_creation"] = actif.get("date_creation", "")
 

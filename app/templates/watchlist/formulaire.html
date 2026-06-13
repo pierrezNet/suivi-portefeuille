@@ -118,14 +118,21 @@
       <em>Pas pour les DCA récurrents (Amundi, etc.) → utiliser le menu
       <a href="{{ url_for('virements_programmes.liste') }}">Programmes</a>.</em>
     </p>
-    <div class="paliers-grille" style="grid-template-columns: 1fr 0.6fr 1fr 1.5fr">
+    <div class="paliers-grille" style="grid-template-columns: 0.7fr 0.75fr 0.55fr 1fr 1.6fr">
+      <label>
+        <span>Sens</span>
+        <select name="ordre_sens">
+          <option value="achat" {% if (donnees.get('ordre_sens') or 'achat') == 'achat' %}selected{% endif %}>Achat</option>
+          <option value="vente" {% if donnees.get('ordre_sens') == 'vente' %}selected{% endif %}>Vente</option>
+        </select>
+      </label>
       <label>
         <span>Prix limite</span>
         <input type="number" step="0.01" name="ordre_prix"
                value="{{ donnees.get('ordre_prix', '') }}" placeholder="175">
       </label>
       <label>
-        <span>Quantité (titres)</span>
+        <span>Qté (titres)</span>
         <input type="number" step="0.01" name="ordre_quantite"
                value="{{ donnees.get('ordre_quantite', '') }}" placeholder="1">
       </label>
@@ -161,6 +168,7 @@
       <thead>
         <tr>
           <th>Créé</th>
+          <th>Sens</th>
           <th class="num">Prix × Qté</th>
           <th>Validité</th>
           <th>Note</th>
@@ -172,17 +180,18 @@
         {% for o in historique %}
           <tr>
             <td>{{ o.date_creation|date_fr if o.date_creation else '—' }}</td>
+            <td>{{ 'Vente' if o.sens == 'vente' else 'Achat' }}</td>
             <td class="num">{{ o.prix_limite }} × {{ o.quantite }}</td>
             <td>{{ o.validite|date_fr if o.validite else '—' }}</td>
             <td><small class="muted">{{ o.note or '' }}</small></td>
             <td><span class="pill pill-statut pill-statut-{{ o.statut }}">{{ o.statut }}</span></td>
             <td>
               {% if not a_un_actif and watch_id %}
-                <form method="post"
-                      action="{{ url_for('watchlist.reactiver_ordre', watch_id=watch_id, ordre_id=o.id) }}"
-                      style="display:inline">
-                  <button type="submit" class="btn-link" title="Remettre cet ordre en attente">↻ Réactiver</button>
-                </form>
+                {# Le bouton cible un <form> placé HORS du formulaire d'édition
+                   (cf. bas du template) — les formulaires imbriqués sont ignorés
+                   par les navigateurs. #}
+                <button type="submit" form="reactiver-{{ o.id }}" class="btn-link"
+                        title="Remettre cet ordre en attente">↻ Réactiver</button>
               {% endif %}
             </td>
           </tr>
@@ -204,4 +213,15 @@
     <a href="{{ url_for('watchlist.liste') }}" class="btn-link">Annuler</a>
   </div>
 </form>
+
+{# Formulaires de réactivation des ordres clos, placés HORS du formulaire
+   d'édition ci-dessus : un <form> imbriqué dans un autre est invalide en HTML
+   (le navigateur l'ignore et le bouton soumet le formulaire parent). Les
+   boutons « ↻ Réactiver » de l'historique les ciblent via l'attribut `form`. #}
+{% if historique and not a_un_actif and watch_id %}
+  {% for o in historique %}
+    <form id="reactiver-{{ o.id }}" method="post"
+          action="{{ url_for('watchlist.reactiver_ordre', watch_id=watch_id, ordre_id=o.id) }}"></form>
+  {% endfor %}
+{% endif %}
 {% endblock %}

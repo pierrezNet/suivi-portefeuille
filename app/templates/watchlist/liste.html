@@ -104,6 +104,7 @@
           <ul>
             {% for o in ordres_attente %}
               <li>
+                <span class="pill">{{ 'Vente' if o.sens == 'vente' else 'Achat' }}</span>
                 <strong>{{ o.prix_limite }} {{ symbole }}</strong>
                 × {{ o.quantite|quantite }}
                 {% if o.validite %}
@@ -112,11 +113,12 @@
                 {% if o.note %}<div><small class="muted">{{ o.note }}</small></div>{% endif %}
                 <div class="actions-ordre" style="margin-top: 0.3rem">
                   {% if w.titre_id %}
-                    <a class="btn-icone" title="Marquer exécuté (crée un mouvement d'achat)"
-                       href="{{ url_for('mouvements.creer', type_mouvement='achat',
+                    <a class="btn-icone" title="Marquer exécuté (crée un mouvement de {{ 'vente' if o.sens == 'vente' else 'achat' }})"
+                       href="{{ url_for('mouvements.creer', type_mouvement=(o.sens or 'achat'),
                               source_ordre_watch_id=w.id, source_ordre_id=o.id,
                               compte_id=w.compte_cible, titre_id=w.titre_id,
                               quantite=o.quantite, prix_unitaire=o.prix_limite,
+                              prix_unitaire_vente=o.prix_limite,
                               devise=w.devise) }}">✓ Exécuté</a>
                   {% else %}
                     <span class="muted" title="Lier d'abord la watch à un titre (bouton ⬆ Promouvoir)">⚠ pas de titre lié</span>
