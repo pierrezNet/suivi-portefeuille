@@ -493,7 +493,7 @@
 
   document.getElementById("modale-form").addEventListener("submit", (e) => {
     e.preventDefault();
-    const mdp = document.getElementById("mdp").value;
+    const mdp = document.getElementById("mdp").value.trim();
     const memoriser = document.getElementById("memoriser").checked;
     tenterDechiffrement(mdp, memoriser);
   });

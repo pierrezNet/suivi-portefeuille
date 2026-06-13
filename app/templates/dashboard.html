@@ -13,7 +13,8 @@
   </div>
   <form method="post" action="{{ url_for('dashboard.publier') }}"
         style="margin:0;display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">
-    <input type="password" name="mot_passe" autocomplete="off"
+    <input type="password" name="mot_passe" autocomplete="new-password"
+           data-lpignore="true" data-1p-ignore data-bwignore
            placeholder="Phrase de passe (vide = env.)"
            title="Phrase de passe de chiffrement du dashboard mobile (≥ 15 car.). Laisse vide si BOURSE_PASSWORD est défini."
            style="max-width:15rem">

@@ -55,7 +55,9 @@ def publier():
 
     data_dir = current_app.config["DATA_DIR"]
     reglages = svc_reglages.charger_reglages(data_dir)
-    mot_passe = request.form.get("mot_passe") or os.environ.get("BOURSE_PASSWORD")
+    # .strip() : un espace parasite (copier-coller, autofill) ne doit pas
+    # produire une clé différente de celle saisie sur mobile (qui trim aussi).
+    mot_passe = (request.form.get("mot_passe") or os.environ.get("BOURSE_PASSWORD") or "").strip()
 
     try:
         if svc_reglages.publication_api_configuree(reglages):
