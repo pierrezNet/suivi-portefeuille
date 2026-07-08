@@ -36,3 +36,6 @@ build/
 # Config MCP locale : chemins absolus propres à la machine d'Emmanuel,
 # inutile aux amis (serveur MCP exclu du .exe).
 .mcp.json
+# Prompt de reprise interne (profil investisseur, courtier, chemins locaux) :
+# document de travail privé, hors dépôt public.
+prompts/
