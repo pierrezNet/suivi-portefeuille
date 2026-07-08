@@ -41,6 +41,16 @@
   {{ champ('Marché', 'marche', placeholder='Euronext Paris') }}
   {{ champ('Devise', 'devise', placeholder='EUR') }}
   {{ champ('Secteur', 'secteur', placeholder='Semi-conducteurs') }}
+  <label class="champ">
+    <span>Catégorie (allocation)</span>
+    <select name="categorie">
+      <option value="">— Auto (classée d'après le secteur) —</option>
+      {% for cat in categories or [] %}
+        <option value="{{ cat }}" {% if donnees.get('categorie') == cat %}selected{% endif %}>{{ cat }}</option>
+      {% endfor %}
+    </select>
+    <small class="muted">Sert au camembert « Par catégorie ». Laisse « Auto » pour un classement automatique.</small>
+  </label>
   {{ champ('Site investisseurs', 'site_ir', type='url', placeholder='https://') }}
   {{ champ('Horizon', 'horizon', placeholder='5-10 ans') }}
   {{ champ('Ticker Yahoo (optionnel — override de l\'inférence)', 'ticker_yahoo', placeholder='CW8.PA · IFX.DE · NET — laisser vide pour auto') }}

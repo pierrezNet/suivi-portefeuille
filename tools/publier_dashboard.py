@@ -81,6 +81,15 @@ def _enrichir_pour_export(data: dict) -> dict:
     out["genere_le_fr"] = _format_date_fr(now)
     out.pop("titres", None)
     out.pop("virements_rattrapes", None)
+    # La trésorerie (cascade cash + disponible) est desktop-only : on la retire
+    # de l'export pour que la charge utile chiffrée et le rendu mobile restent
+    # strictement inchangés (champ par compte + deux totaux globaux).
+    out.pop("total_disponible_comptant", None)
+    out.pop("total_reserve_ordres", None)
+    out["comptes"] = [
+        {k: v for k, v in c.items() if k != "tresorerie"}
+        for c in data.get("comptes", [])
+    ]
     return out
 
 

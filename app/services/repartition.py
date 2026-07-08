@@ -7,6 +7,8 @@ from __future__ import annotations
 import math
 from decimal import Decimal
 
+from app.services.categories import categoriser
+
 # Palette inspirée DSFR (cohérente avec le reste de l'app)
 COULEURS = (
     "#000091", "#18753c", "#b34700", "#6e2782",
@@ -14,7 +16,7 @@ COULEURS = (
 )
 
 
-AXES = ("compte", "secteur", "devise")
+AXES = ("compte", "categorie", "devise")
 
 
 def repartition_par_axe(
@@ -34,9 +36,9 @@ def repartition_par_axe(
                 continue
             if axe == "compte":
                 label = (vue.get("compte") or {}).get("nom") or (vue.get("compte") or {}).get("id", "")
-            elif axe == "secteur":
+            elif axe == "categorie":
                 t = titres_par_id.get(p.get("titre_id")) or {}
-                label = (t.get("secteur") or "").strip() or "Sans secteur"
+                label = categoriser(t)
             else:  # devise
                 t = titres_par_id.get(p.get("titre_id")) or {}
                 label = (t.get("devise") or "EUR").upper()

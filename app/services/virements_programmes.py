@@ -24,7 +24,7 @@ import calendar
 import re
 import uuid
 from datetime import date as _date
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from app.services.stockage import Depot
 
@@ -356,3 +356,67 @@ def rattraper(depot: Depot, *, jusqu_a: _date | None = None) -> list[dict]:
         evenements.sort(key=lambda e: (e.get("date", ""), e.get("id", "")))
         depot.enregistrer("evenements", evenements)
     return nouveaux_mvt + nouveaux_evt
+
+
+# --- Aide à l'honoration d'un rappel DCA ---------------------------------
+#
+# Ces helpers sont purs (aucune I/O) : ils servent à la fois la page
+# Événements (bouton « ✓ Honorer ») et la page Programmes (bouton « ✓
+# Enregistrer l'achat »), sans dupliquer la logique.
+
+
+def info_dca_pour_rappel(
+    evenement: dict, programmes_par_id: dict, titres_par_id: dict
+) -> dict | None:
+    """Infos pour pré-remplir un mouvement d'achat depuis un rappel DCA.
+
+    Renvoie ``{compte_id, titre_id, devise, montant_cible}`` pour un rappel DCA
+    (id ``e-dca-*``) **non encore honoré** (sans ``mouvement_id``) dont le
+    programme d'origine existe encore. Renvoie ``None`` sinon (événement non
+    DCA, déjà honoré, ou programme supprimé).
+    """
+    if not str(evenement.get("id", "")).startswith("e-dca-"):
+        return None
+    if evenement.get("mouvement_id"):
+        return None
+    vp = programmes_par_id.get(evenement.get("virement_programme_id"))
+    if not vp:
+        return None
+    titre = titres_par_id.get(vp.get("titre_id")) or {}
+    return {
+        "compte_id": vp.get("compte_id"),
+        "titre_id": vp.get("titre_id"),
+        "devise": titre.get("devise") or vp.get("devise") or "EUR",
+        "montant_cible": vp.get("montant"),
+    }
+
+
+def _decimal_ou_none(v) -> Decimal | None:
+    if v is None or v == "":
+        return None
+    try:
+        return Decimal(str(v))
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def suggestion_achat_dca(montant_cible, titre: dict | None) -> dict | None:
+    """Propose une quantité et un prix d'achat à partir du montant cible et du
+    dernier cours importé du titre (``cours_jour_eur``).
+
+    Quantité = montant_cible / cours ; prix = cours. Les deux sont arrondis à 4
+    décimales (``ROUND_HALF_UP``), cohérent avec la saisie du formulaire.
+    Renvoie ``None`` si le cours est absent/nul ou le montant invalide (aucune
+    suggestion imposée : le champ reste vierge, l'utilisateur saisit le réel).
+    """
+    cours = _decimal_ou_none((titre or {}).get("cours_jour_eur"))
+    montant = _decimal_ou_none(montant_cible)
+    if cours is None or montant is None or cours <= 0 or montant <= 0:
+        return None
+    pas = Decimal("0.0001")
+    return {
+        "quantite": (montant / cours).quantize(pas, rounding=ROUND_HALF_UP),
+        "prix_unitaire": cours.quantize(pas, rounding=ROUND_HALF_UP),
+        "cours": cours,
+        "date_cours": (titre or {}).get("date_cours_jour"),
+    }

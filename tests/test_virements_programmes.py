@@ -352,8 +352,9 @@ def test_recap_actifs_mensuel_pur():
     assert recap["total_mensuel_eq"] == Decimal("180.00")
     assert recap["total_dca"] == Decimal("80.00")
     assert recap["total_cash"] == Decimal("100.00")
-    assert recap["prochaine"]["date"] == "2026-07-01"
-    assert recap["prochaine"]["is_dca"] is False
+    # cash au 01/07 (plus tôt) mais l'INVESTISSEMENT (DCA) est au 05/07
+    assert recap["prochain_investissement"]["date"] == "2026-07-05"
+    assert recap["prochaine_alimentation"]["date"] == "2026-07-01"
 
 
 def test_recap_actifs_melange_periodicites():
@@ -373,7 +374,8 @@ def test_recap_actifs_melange_periodicites():
     assert recap["total_mensuel_eq"] == Decimal("215.00")
     assert recap["total_dca"] == Decimal("115.00")  # 80 + 35
     assert recap["total_cash"] == Decimal("100.00")
-    assert recap["prochaine"] is None
+    assert recap["prochain_investissement"] is None
+    assert recap["prochaine_alimentation"] is None
 
 
 def test_recap_actifs_aucune_echeance():
@@ -384,4 +386,5 @@ def test_recap_actifs_aucune_echeance():
     assert recap["total_mensuel_eq"] == Decimal("0")
     assert recap["total_dca"] == Decimal("0")
     assert recap["total_cash"] == Decimal("0")
-    assert recap["prochaine"] is None
+    assert recap["prochain_investissement"] is None
+    assert recap["prochaine_alimentation"] is None

@@ -43,33 +43,6 @@ def liste():
     )
 
 
-def _fusionner_ordres(donnees: dict, historique_archive: list[dict]) -> list[dict]:
-    """Construit la liste finale `ordres_actifs` à partir du formulaire
-    (1 ordre actif au plus) + de l'historique des ordres déjà clos.
-
-    `historique_archive` : ordres dont `statut != "en_attente"` issus de la
-    base. `donnees` peut contenir `ordre_prix/quantite/validite/note/id/
-    date_creation` pour l'ordre actif courant.
-
-    Si le formulaire ne contient pas d'ordre actif mais qu'un actif existait
-    en base (cas édition avec champs vidés), il est archivé en `annule`.
-    """
-    finaux = list(historique_archive)
-    prix = (donnees.get("ordre_prix") or "").strip()
-    if prix:
-        finaux.append({
-            "prix_limite": prix,
-            "quantite": donnees.get("ordre_quantite", ""),
-            "validite": donnees.get("ordre_validite", ""),
-            "note": donnees.get("ordre_note", ""),
-            "sens": donnees.get("ordre_sens", "achat"),
-            "statut": "en_attente",
-            "id": donnees.get("ordre_id") or "",
-            "date_creation": donnees.get("ordre_date_creation") or "",
-        })
-    return finaux
-
-
 @bp.route("/nouveau", methods=["GET", "POST"])
 def creer():
     depot = current_app.config["DEPOT"]
@@ -78,7 +51,7 @@ def creer():
     if request.method == "POST":
         try:
             donnees = _enrichir_paliers(donnees, request.form)
-            donnees["ordres_actifs"] = _fusionner_ordres(donnees, [])
+            donnees["ordres_actifs"] = svc.fusionner_ordre_actif(donnees, [])
             w = svc.creer(depot, donnees)
             flash(f"« {w.get('nom') or w.get('ticker')} » ajouté à la watchlist.", "success")
             return redirect(url_for("watchlist.liste"))
@@ -150,11 +123,9 @@ def editer(watch_id: str):
             # Fusionner : ordres clos (statut != en_attente) restent intouchés,
             # l'actif est remplacé par le contenu du formulaire (ou supprimé
             # silencieusement si les champs sont vides).
-            historique = [
-                o for o in (item.get("ordres_actifs") or [])
-                if o.get("statut") != "en_attente"
-            ]
-            donnees["ordres_actifs"] = _fusionner_ordres(donnees, historique)
+            donnees["ordres_actifs"] = svc.fusionner_ordre_actif(
+                donnees, item.get("ordres_actifs")
+            )
             svc.mettre_a_jour(depot, watch_id, donnees)
             flash("Watchlist mise à jour.", "success")
             return redirect(url_for("watchlist.liste"))
@@ -375,6 +346,10 @@ def annuler_ordre(watch_id: str, ordre_id: str):
         flash("Ordre marqué comme annulé.", "success")
     else:
         flash("Ordre introuvable ou déjà annulé.", "error")
+    # Retour sur la page d'origine (ex. fiche titre) si fournie, sinon watchlist.
+    next_url = request.form.get("next")
+    if next_url and next_url.startswith("/") and not next_url.startswith("//"):
+        return redirect(next_url)
     return redirect(url_for("watchlist.liste"))
 
 

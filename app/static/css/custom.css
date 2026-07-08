@@ -1412,3 +1412,72 @@ textarea:focus-visible {
   color: var(--gris-muet);
   border-top: 1px solid var(--gris-bordure);
 }
+
+/* Panneau Trésorerie (cascade cash par compte, dashboard desktop) */
+.tresorerie {
+  margin: 0.4rem 0 0.6rem;
+}
+.tresorerie > summary {
+  cursor: pointer;
+  color: var(--bleu-france);
+  font-size: 0.9rem;
+}
+.table-tresorerie {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.4rem;
+  font-size: 0.9rem;
+}
+.table-tresorerie td {
+  padding: 0.15rem 0.4rem;
+}
+.table-tresorerie .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.table-tresorerie .ligne-total td {
+  border-top: 1px solid var(--gris-bordure);
+  font-weight: 600;
+}
+.table-tresorerie .ligne-reserve td {
+  color: var(--rouge);
+}
+.table-tresorerie .ligne-dispo td {
+  border-top: 2px solid var(--bleu-france);
+  font-weight: 700;
+}
+.note-tresorerie {
+  font-size: 0.8rem;
+  margin: 0.2rem 0 0;
+}
+
+/* Colonne droite de la fiche titre : empile plusieurs blocs dans 1 cellule */
+.col-droite { min-width: 0; }
+
+/* Formulaires compacts embarqués (fiche titre : ordres, plan de rachat) —
+   label au-dessus du champ, sans le chrome de .formulaire (pas de carte). */
+.form-compact .champ {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+.form-compact .champ > span {
+  color: var(--gris-muet);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.2rem;
+}
+.form-compact input,
+.form-compact select,
+.form-compact textarea {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--gris-bordure);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+.form-compact textarea { resize: vertical; }

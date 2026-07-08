@@ -35,6 +35,13 @@
     {% else %}
       Saisis la quantité et le prix unitaire réels du relevé broker.
     {% endif %}
+    {% if suggestion_dca %}
+      <br><small class="muted">
+        💡 Quantité et prix pré-remplis d'après le dernier cours importé
+        ({{ suggestion_dca.cours|euros }}{% if suggestion_dca.date %} au {{ suggestion_dca.date|date_fr }}{% endif %}).
+        Ajuste-les selon ton exécution réelle.
+      </small>
+    {% endif %}
     Le rappel sera marqué <em>honoré</em>.
   </div>
 {% endif %}
@@ -93,6 +100,9 @@
     {% if type_mouvement == 'achat' %}
       {{ champ('Quantité', 'quantite', type='number', step='0.0001', required=True) }}
       {{ champ('Prix unitaire EUR (facturé par le broker)', 'prix_unitaire', type='number', step='0.0001', required=True) }}
+      {% if donnees.get('montant_cible') %}
+        <p class="muted" id="dca-coherence" data-cible="{{ donnees.get('montant_cible') }}"></p>
+      {% endif %}
       {{ champ('Frais courtage (€)', 'frais_courtage', type='number', step='0.01') }}
       {{ champ('Devise d\'origine du titre (info)', 'devise', placeholder='EUR') }}
       {{ champ('Taux change vs EUR (info)', 'taux_change', type='number', step='0.0001', placeholder='1.0') }}
@@ -164,6 +174,38 @@
     compte.addEventListener('change', rafraichirDispo);
     titre.addEventListener('change', rafraichirDispo);
     rafraichirDispo();
+  })();
+</script>
+{% endif %}
+
+{% if type_mouvement == 'achat' %}
+<script>
+  // Indice de cohérence non bloquant : compare quantité × prix au montant cible
+  // du rappel DCA (aide à repérer une saisie manifestement erronée).
+  (function() {
+    const el = document.getElementById('dca-coherence');
+    if (!el) return;
+    const cible = parseFloat(el.dataset.cible);
+    const q = document.querySelector('input[name="quantite"]');
+    const p = document.querySelector('input[name="prix_unitaire"]');
+    if (!q || !p) return;
+    function maj() {
+      const qv = parseFloat(q.value), pv = parseFloat(p.value);
+      if (!isFinite(qv) || !isFinite(pv) || !isFinite(cible) || cible <= 0) {
+        el.textContent = '';
+        return;
+      }
+      const total = qv * pv;
+      const ecart = (total - cible) / cible * 100;
+      el.textContent = 'Montant calculé : ' + total.toFixed(2) + ' € '
+        + '(cible ' + cible.toFixed(2) + ' €, écart '
+        + (ecart >= 0 ? '+' : '') + ecart.toFixed(0) + ' %).';
+      el.classList.toggle('erreur', Math.abs(ecart) > 20);
+      el.classList.toggle('muted', Math.abs(ecart) <= 20);
+    }
+    q.addEventListener('input', maj);
+    p.addEventListener('input', maj);
+    maj();
   })();
 </script>
 {% endif %}

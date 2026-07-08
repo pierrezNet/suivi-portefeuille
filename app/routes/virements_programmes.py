@@ -64,21 +64,31 @@ def _recap_actifs(virements: list[dict], echeances: list[dict]) -> dict:
             total_cash += equivalent
     total = total_dca + total_cash
 
-    prochaine = None
-    if echeances:
-        e = echeances[0]
-        prochaine = {
+    # On distingue le prochain INVESTISSEMENT (DCA, avec titre — achat de
+    # titres) de la prochaine ALIMENTATION (virement cash, sans titre — simple
+    # financement du compte) : deux natures à ne pas confondre.
+    prochain_investissement = None
+    prochaine_alimentation = None
+    for e in echeances:  # déjà triées par date croissante
+        infos = {
             "date": e["date"],
             "montant": e["vp"].get("montant"),
             "libelle": e["vp"].get("libelle"),
-            "is_dca": bool(e["vp"].get("titre_id")),
+            "titre_id": e["vp"].get("titre_id"),
         }
+        if e["vp"].get("titre_id"):
+            prochain_investissement = prochain_investissement or infos
+        else:
+            prochaine_alimentation = prochaine_alimentation or infos
+        if prochain_investissement and prochaine_alimentation:
+            break
 
     return {
         "total_mensuel_eq": total,
         "total_dca": total_dca,
         "total_cash": total_cash,
-        "prochaine": prochaine,
+        "prochain_investissement": prochain_investissement,
+        "prochaine_alimentation": prochaine_alimentation,
     }
 
 
@@ -120,6 +130,22 @@ def liste():
     titres = {t["id"]: t for t in depot.charger("titres")}
     echeances = _prochaines_echeances(items)
     recap = _recap_actifs(items, echeances)
+
+    # Rappels DCA non honorés, groupés par programme, pour proposer
+    # « ✓ Enregistrer l'achat » directement ici (même action que la page
+    # Événements — logique factorisée dans le service).
+    programmes_par_id = {v["id"]: v for v in items}
+    rappels_par_vp: dict[str, list[dict]] = {}
+    for e in depot.charger("evenements"):
+        info = svc.info_dca_pour_rappel(e, programmes_par_id, titres)
+        if info is None:
+            continue
+        rappels_par_vp.setdefault(e["virement_programme_id"], []).append(
+            {"evenement": e, "info_dca": info}
+        )
+    for lst in rappels_par_vp.values():
+        lst.sort(key=lambda r: r["evenement"].get("date", ""))
+
     return render_template(
         "virements_programmes/liste.html",
         virements=items,
@@ -127,6 +153,7 @@ def liste():
         titres=titres,
         echeances=echeances,
         recap=recap,
+        rappels_par_vp=rappels_par_vp,
     )
 
 

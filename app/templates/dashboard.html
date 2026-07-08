@@ -49,7 +49,7 @@
 </div>
 {% endif %}
 
-{% set camembert_labels = {'compte': 'Par compte', 'secteur': 'Par secteur', 'devise': 'Par devise'} %}
+{% set camembert_labels = {'compte': 'Par compte', 'categorie': 'Par catégorie', 'devise': 'Par devise'} %}
 
 <div class="grille-2cols">
 <div>
@@ -204,6 +204,31 @@
               {% endif %}
             </div>
           </header>
+
+          {% set tr = vue.tresorerie %}
+          {% if tr %}
+            <details class="tresorerie">
+              <summary>💶 Trésorerie — disponible <strong>{{ tr.disponible_comptant|euros }}</strong></summary>
+              <table class="table-tresorerie">
+                <tbody>
+                  <tr><td>Versements</td><td class="num">{{ tr.versements|euros }}</td></tr>
+                  {% if tr.ventes %}<tr><td>Ventes</td><td class="num">{{ tr.ventes|euros }}</td></tr>{% endif %}
+                  {% if tr.dividendes %}<tr><td>Dividendes</td><td class="num">{{ tr.dividendes|euros }}</td></tr>{% endif %}
+                  <tr><td>Achats</td><td class="num">− {{ tr.achats|euros }}</td></tr>
+                  {% if tr.frais %}<tr><td>Frais</td><td class="num">− {{ tr.frais|euros }}</td></tr>{% endif %}
+                  {% if tr.retraits %}<tr><td>Retraits</td><td class="num">− {{ tr.retraits|euros }}</td></tr>{% endif %}
+                  <tr class="ligne-total"><td>Solde espèces</td><td class="num">{{ tr.solde_especes|euros }}</td></tr>
+                  {% for o in tr.ordres_reserve %}
+                    <tr class="ligne-reserve"><td>− Ordre {{ o.ticker }} ({{ o.quantite }} × {{ o.prix_limite }} €)</td><td class="num">− {{ o.montant|euros }}</td></tr>
+                  {% endfor %}
+                  <tr class="ligne-dispo"><td><strong>Disponible au comptant</strong></td><td class="num"><strong>{{ tr.disponible_comptant|euros }}</strong></td></tr>
+                </tbody>
+              </table>
+              {% if tr.reserve_total > 0 %}
+                <p class="muted note-tresorerie">Hors frais de courtage estimés (le broker réserve ~1 € de plus par ordre).</p>
+              {% endif %}
+            </details>
+          {% endif %}
 
           {% if vue.positions %}
             <table class="table-positions">

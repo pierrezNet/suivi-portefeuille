@@ -16,9 +16,13 @@ from app.services import fiscal, predictions, repartition, snapshots, virements_
 from app.services.evenements import LIBELLES_TYPES as LIBELLES_EVENEMENT
 from app.services.evenements import lister as lister_evenements
 from app.services.pru import calculer_pru
-from app.services.soldes import calculer_positions, calculer_solde_cash
+from app.services.soldes import (
+    calculer_positions,
+    calculer_ventilation_cash,
+)
 from app.services.stockage import Depot
 from app.services.watchlist import lister as lister_watchlist
+from app.services.watchlist import reserve_cash_par_compte
 
 
 JOURS_AGENDA_DEFAUT = 60
@@ -97,6 +101,11 @@ def construire(
     comptes = depot.charger("comptes")
     titres = {t["id"]: t for t in depot.charger("titres")}
     mouvements = depot.charger("mouvements")
+    watchlist_brut = depot.charger("watchlist")
+    # Cash « réservé » par les ordres d'achat en attente, par compte.
+    reserve_par_compte = reserve_cash_par_compte(
+        watchlist_brut, today_iso=today.isoformat()
+    )
 
     annee_courante = today.year
 
@@ -105,10 +114,12 @@ def construire(
     total_cash = Decimal("0.00")
     total_valo_titres = Decimal("0.00")
     total_pv_latente = Decimal("0.00")
+    total_reserve_ordres = Decimal("0.00")
     nb_positions_sans_cours = 0
     age_cours_max_jours: int | None = None
     for compte in comptes:
-        solde = calculer_solde_cash(mouvements, compte["id"])
+        ventilation = calculer_ventilation_cash(mouvements, compte["id"])
+        solde = ventilation["solde"]
         positions = calculer_positions(mouvements, compte["id"])
         positions_vue = []
         valo_compte = Decimal("0.00")
@@ -140,9 +151,14 @@ def construire(
                     v["age_jours"] if age_cours_max_jours is None
                     else max(age_cours_max_jours, v["age_jours"])
                 )
+        reserve = reserve_par_compte.get(
+            compte["id"], {"total": Decimal("0.00"), "ordres": []}
+        )
+        disponible = (solde - reserve["total"]).quantize(Decimal("0.01"))
         total_cash += solde
         total_valo_titres += valo_compte
         total_pv_latente += pv_latente_compte
+        total_reserve_ordres += reserve["total"]
         vue_comptes.append(
             {
                 "compte": compte,
@@ -151,9 +167,24 @@ def construire(
                 "pv_latente_eur": pv_latente_compte,
                 "total_eur": solde + valo_compte,
                 "positions": positions_vue,
+                "tresorerie": {
+                    "versements": ventilation["versements"],
+                    "ventes": ventilation["ventes"],
+                    "dividendes": ventilation["dividendes"],
+                    "achats": ventilation["achats"],
+                    "frais": ventilation["frais"],
+                    "retraits": ventilation["retraits"],
+                    "solde_especes": solde,
+                    "reserve_total": reserve["total"],
+                    "ordres_reserve": reserve["ordres"],
+                    "disponible_comptant": disponible,
+                },
             }
         )
     total_portefeuille = total_cash + total_valo_titres
+    total_disponible_comptant = (
+        total_cash - total_reserve_ordres
+    ).quantize(Decimal("0.01"))
     cours_a_actualiser = (
         nb_positions_sans_cours > 0
         or (age_cours_max_jours is not None and age_cours_max_jours > AGE_COURS_ALERTE_JOURS)
@@ -171,7 +202,6 @@ def construire(
     evenements_a_venir = lister_evenements(
         depot, date_debut=today_iso, date_fin=horizon
     )
-    watchlist_brut = depot.charger("watchlist")
     echeances_watch = [
         w
         for w in watchlist_brut
@@ -288,6 +318,8 @@ def construire(
     return {
         "comptes": vue_comptes,
         "total_cash": total_cash,
+        "total_disponible_comptant": total_disponible_comptant,
+        "total_reserve_ordres": total_reserve_ordres,
         "total_valo_titres": total_valo_titres,
         "total_pv_latente": total_pv_latente,
         "total_portefeuille": total_portefeuille,

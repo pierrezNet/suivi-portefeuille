@@ -83,11 +83,15 @@ function networkFirstWithTimeout(request, cacheName, timeoutMs) {
     }, timeoutMs);
     fetch(request)
       .then((rep) => {
+        // TOUJOURS rafraîchir le cache avec la réponse réseau, même si le
+        // timeout a déjà servi une version en cache pour CETTE requête —
+        // sinon, sur connexion lente, le cache reste périmé indéfiniment
+        // (data.enc.json chiffré avec un ancien mot de passe → « incorrect »).
+        const copie = rep.clone();
+        caches.open(cacheName).then((c) => c.put(request, copie));
         if (resolu) return;
         resolu = true;
         clearTimeout(tFallback);
-        const copie = rep.clone();
-        caches.open(cacheName).then((c) => c.put(request, copie));
         resolve(rep);
       })
       .catch(() => {

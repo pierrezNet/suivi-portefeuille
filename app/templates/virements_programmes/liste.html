@@ -14,8 +14,9 @@
     </p>
   </div>
   <div>
-    <form method="post" action="{{ url_for('virements_programmes.rattraper_maintenant') }}" style="display:inline">
-      <button type="submit" class="btn">↻ Forcer rattrapage</button>
+    <form method="post" action="{{ url_for('virements_programmes.rattraper_maintenant') }}" style="display:inline"
+          onsubmit="return confirm('Générer les échéances manquantes jusqu\'à aujourd\'hui ?\n\nSans risque : ne crée que les rappels DCA et virements cash qui manquent, ne duplique jamais, et se lance déjà automatiquement à chaque ouverture du tableau de bord.');">
+      <button type="submit" class="btn" title="Crée les échéances passées manquantes (rappels DCA + virements cash). Idempotent : aucune duplication. Utile seulement si tu as changé une date.">↻ Générer les échéances manquantes</button>
     </form>
     <a class="btn btn-primary" href="{{ url_for('virements_programmes.creer') }}">+ Nouveau programme</a>
   </div>
@@ -36,33 +37,28 @@
 {% if virements %}
 <section class="stats-bandeau">
   <div class="stat-bloc">
-    <span class="stat-label">Investissements actifs</span>
-    <span class="stat-valeur">{{ recap.total_mensuel_eq|euros }}</span>
-    <span class="stat-detail muted">équivalent / mois</span>
+    <span class="stat-label">Investissements (DCA)</span>
+    <span class="stat-valeur">{{ recap.total_dca|euros }}</span>
+    <span class="stat-detail muted">équivalent / mois — achat de titres</span>
   </div>
   <div class="stat-bloc">
     <span class="stat-label">Prochain investissement</span>
-    {% if recap.prochaine %}
-      <span class="stat-valeur">{{ recap.prochaine.montant }} €</span>
-      <span class="stat-detail muted">
-        {% if recap.prochaine.is_dca %}DCA{% else %}cash{% endif %}
-        — {{ recap.prochaine.libelle }}
-      </span>
+    {% if recap.prochain_investissement %}
+      {% set pi = recap.prochain_investissement %}
+      {% set t = titres.get(pi.titre_id) %}
+      <span class="stat-valeur">{{ pi.montant }} €</span>
+      <span class="stat-detail muted">{% if t %}{{ t.ticker }} — {% endif %}le {{ pi.date|date_fr }}</span>
     {% else %}
       <span class="stat-valeur">—</span>
-      <span class="stat-detail muted">aucune échéance</span>
+      <span class="stat-detail muted">aucun à venir</span>
     {% endif %}
   </div>
   <div class="stat-bloc">
-    <span class="stat-label">Date d'exécution</span>
-    {% if recap.prochaine %}
-      <span class="stat-valeur">{{ recap.prochaine.date|date_fr }}</span>
-      <span class="stat-detail muted">
-        dont {{ recap.total_dca|euros }} DCA · {{ recap.total_cash|euros }} cash
-      </span>
-    {% else %}
-      <span class="stat-valeur">—</span>
-    {% endif %}
+    <span class="stat-label">Alimentation du compte</span>
+    <span class="stat-valeur">{{ recap.total_cash|euros }}</span>
+    <span class="stat-detail muted">
+      cash / mois{% if recap.prochaine_alimentation %} — prochaine le {{ recap.prochaine_alimentation.date|date_fr }}{% endif %}
+    </span>
   </div>
 </section>
 
@@ -116,6 +112,21 @@
           {% endif %}
         </td>
         <td class="actions">
+          {% set rappels = (rappels_par_vp or {}).get(v.id) %}
+          {% if rappels %}
+            <div class="rappels-dca-actions">
+              {% for r in rappels %}
+                <a class="btn-icone" title="Enregistrer l'achat réel de ce rappel DCA du {{ r.evenement.date|date_fr }} (pré-remplit quantité + prix)"
+                   href="{{ url_for('mouvements.creer', type_mouvement='achat',
+                          source_evenement_id=r.evenement.id,
+                          compte_id=r.info_dca.compte_id,
+                          titre_id=r.info_dca.titre_id,
+                          devise=r.info_dca.devise,
+                          date=r.evenement.date,
+                          montant_cible=r.info_dca.montant_cible) }}">✓ Achat {{ r.evenement.date|date_courte }}</a>
+              {% endfor %}
+            </div>
+          {% endif %}
           <a href="{{ url_for('virements_programmes.editer', vp_id=v.id) }}" title="Éditer">✎</a>
           <form method="post" action="{{ url_for('virements_programmes.supprimer', vp_id=v.id) }}" style="display:inline" onsubmit="return confirm('Supprimer ce virement programmé ? Les mouvements déjà créés ne seront pas effacés.');">
             <button type="submit" class="btn-icone" title="Supprimer">🗑</button>

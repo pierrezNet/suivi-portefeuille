@@ -122,8 +122,8 @@
 
   function renderCamemberts(data) {
     if (!data.coords_camemberts) return "";
-    const libelles = {compte: "Par compte", secteur: "Par secteur", devise: "Par devise"};
-    const blocs = ["compte", "secteur", "devise"]
+    const libelles = {compte: "Par compte", categorie: "Par catégorie", devise: "Par devise"};
+    const blocs = ["compte", "categorie", "devise"]
       .map((axe) => {
         const c = data.coords_camemberts[axe];
         const parts = (data.repartitions && data.repartitions[axe]) || [];

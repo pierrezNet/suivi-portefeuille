@@ -25,11 +25,29 @@ FICHIER_META = "meta.json"
 # (install existant d'Emmanuel ou install neuf), on considère les données à
 # cette version, puis on applique les migrations ultérieures éventuelles.
 VERSION_INITIALE = 1
-VERSION_SCHEMA_COURANTE = 1
+VERSION_SCHEMA_COURANTE = 2
 
-# Liste ordonnée : (version_cible, fonction(depot) -> None). Vide aujourd'hui.
+
+def _migration_v2_categorie(depot: Depot) -> None:
+    """v1→v2 : renseigne le champ contrôlé `categorie` sur chaque titre qui ne
+    l'a pas encore, en classant son `secteur` libre (voir app.services.categories).
+    Idempotent : ne touche pas un titre déjà catégorisé."""
+    from app.services.categories import CATEGORIES, categoriser
+
+    titres = depot.charger("titres")
+    modifie = False
+    for t in titres:
+        if (t.get("categorie") or "").strip() in CATEGORIES:
+            continue
+        t["categorie"] = categoriser(t)
+        modifie = True
+    if modifie:
+        depot.enregistrer("titres", titres)
+
+
+# Liste ordonnée : (version_cible, fonction(depot) -> None).
 MIGRATIONS: list[tuple[int, Callable[[Depot], None]]] = [
-    # (2, _migration_v2_exemple),
+    (2, _migration_v2_categorie),
 ]
 
 

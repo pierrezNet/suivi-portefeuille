@@ -19,8 +19,28 @@ def test_appliquer_sans_migration_estampille(tmp_path):
 
 def test_appliquer_sans_migration_ne_sauvegarde_pas(tmp_path):
     appels = []
+    # dépôt déjà à la version courante → rien à migrer
+    migrations._ecrire_version(tmp_path, migrations.VERSION_SCHEMA_COURANTE)
     migrations.appliquer(tmp_path, sauvegarder=lambda dd: appels.append(dd))
     assert appels == []  # rien à migrer → pas de sauvegarde
+
+
+def test_migration_v2_backfill_categorie(tmp_path):
+    """La migration v2 renseigne `categorie` sur les titres qui n'en ont pas,
+    sans écraser une catégorie déjà valide."""
+    d = Depot(tmp_path)
+    d.enregistrer("titres", [
+        {"id": "ml", "ticker": "ML", "nom": "Michelin", "secteur": "Penumatiques"},
+        {"id": "ho", "ticker": "HO", "nom": "Thales", "secteur": "Défense"},
+        # déjà catégorisé (valide) → doit rester intact malgré un secteur logiciel
+        {"id": "x", "ticker": "X", "nom": "X", "secteur": "Software", "categorie": "Défense"},
+    ])
+    migrations._ecrire_version(tmp_path, 1)
+    migrations.appliquer(tmp_path)
+    titres = {t["id"]: t for t in Depot(tmp_path).charger("titres")}
+    assert titres["ml"]["categorie"] == "Industrie & Matériaux"
+    assert titres["ho"]["categorie"] == "Défense"
+    assert titres["x"]["categorie"] == "Défense"
 
 
 def test_appliquer_migration_en_attente(tmp_path, monkeypatch):

@@ -33,6 +33,7 @@ build/
 
 # --- Outillage local ---
 .claude/
+.idea/
 # Config MCP locale : chemins absolus propres à la machine d'Emmanuel,
 # inutile aux amis (serveur MCP exclu du .exe).
 .mcp.json

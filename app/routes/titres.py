@@ -20,6 +20,8 @@ from datetime import date as _date
 
 from app.services import notes_titres as svc_notes
 from app.services import titres as svc
+from app.services import watchlist as svc_watchlist
+from app.services.categories import CATEGORIES
 from app.services.evenements import LIBELLES_TYPES as LIBELLES_EVENEMENT
 from app.services.evenements import lister as lister_evenements
 from app.services.mouvements import lister as lister_mouvements
@@ -107,6 +109,7 @@ def creer():
         mode="creation",
         donnees=donnees,
         erreurs=erreurs,
+        categories=CATEGORIES,
     )
 
 
@@ -155,9 +158,28 @@ def detail(titre_id: str):
         depot, titre_id=titre_id, date_debut=today_iso
     )
 
+    # Ordre(s) actif(s) lié(s) au titre — mêmes données que la watchlist.
+    watch_liee = svc_watchlist.trouver_watch_par_titre(depot, titre_id)
+    ordres_actifs = [
+        o for o in ((watch_liee.get("ordres_actifs") if watch_liee else None) or [])
+        if o.get("statut") == "en_attente"
+    ]
+    symbole = "$" if (titre.get("devise") or "EUR").upper() == "USD" else "€"
+    paliers = (watch_liee.get("paliers_rachat") if watch_liee else None) or []
+    paliers_txt = {
+        "prix": "\n".join(p.get("prix", "") for p in paliers),
+        "tranche": "\n".join(p.get("tranche", "") for p in paliers),
+        "commentaire": "\n".join(p.get("commentaire", "") for p in paliers),
+    }
+
     return render_template(
         "titres/detail.html",
         titre=titre,
+        watch_liee=watch_liee,
+        ordres_actifs=ordres_actifs,
+        symbole=symbole,
+        paliers=paliers,
+        paliers_txt=paliers_txt,
         mouvements=mouvements_titre,
         comptes=comptes,
         positions=positions,
@@ -172,6 +194,60 @@ def detail(titre_id: str):
         types_note_codes=svc_notes.TYPES_NOTE,
         evenements_pour_lien=depot.charger("evenements"),
     )
+
+
+def _watch_du_titre(depot, titre: dict) -> dict:
+    """Watch liée au titre, ou une watch minimale créée à la volée (compte cible
+    = un compte où le titre a déjà une position, si disponible)."""
+    watch = svc_watchlist.trouver_watch_par_titre(depot, titre["id"])
+    if watch:
+        return watch
+    comptes_pos = [
+        m.get("compte_id") for m in depot.charger("mouvements")
+        if m.get("titre_id") == titre["id"] and m.get("compte_id")
+    ]
+    return svc_watchlist.creer(depot, {
+        "nom": titre.get("nom") or titre.get("ticker") or titre["id"],
+        "ticker": titre.get("ticker", ""),
+        "titre_id": titre["id"],
+        "devise": titre.get("devise", "EUR"),
+        "compte_cible": comptes_pos[0] if comptes_pos else "",
+        "statut": "actif",
+    })
+
+
+@bp.route("/<titre_id>/ordre", methods=["POST"])
+def enregistrer_ordre(titre_id: str):
+    """Pose / modifie / retire l'ordre actif d'un titre, depuis sa fiche (écrit
+    sur la watchlist liée ; en crée une minimale si le titre n'en a pas)."""
+    depot = current_app.config["DEPOT"]
+    titre = svc.trouver(depot, titre_id)
+    if not titre:
+        abort(404)
+    watch = _watch_du_titre(depot, titre)
+    try:
+        svc_watchlist.definir_ordre_actif(depot, watch["id"], dict(request.form))
+        flash("Ordre enregistré.", "success")
+    except ValueError as e:
+        flash(f"Ordre invalide : {e}", "error")
+    return redirect(url_for("titres.detail", titre_id=titre_id))
+
+
+@bp.route("/<titre_id>/paliers", methods=["POST"])
+def enregistrer_paliers(titre_id: str):
+    """Met à jour le plan de rachat indicatif d'un titre, depuis sa fiche (écrit
+    sur la watchlist liée ; en crée une minimale si le titre n'en a pas)."""
+    depot = current_app.config["DEPOT"]
+    titre = svc.trouver(depot, titre_id)
+    if not titre:
+        abort(404)
+    watch = _watch_du_titre(depot, titre)
+    try:
+        svc_watchlist.definir_paliers(depot, watch["id"], dict(request.form))
+        flash("Plan de rachat mis à jour.", "success")
+    except ValueError as e:
+        flash(f"Plan invalide : {e}", "error")
+    return redirect(url_for("titres.detail", titre_id=titre_id))
 
 
 def _construire_journal(
@@ -265,6 +341,7 @@ def editer(titre_id: str):
         titre_id=titre_id,
         donnees=donnees,
         erreurs=erreurs,
+        categories=CATEGORIES,
     )
 
 

@@ -28,6 +28,7 @@ CHAMPS_LIBRES = (
     "marche",
     "devise",
     "secteur",
+    "categorie",
     "site_ir",
     "horizon",
     "frequence_dividende",

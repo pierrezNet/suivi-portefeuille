@@ -101,6 +101,7 @@ def creer(type_mouvement: str):
     depot = current_app.config["DEPOT"]
 
     erreurs: dict[str, str] = {}
+    suggestion_dca = None
     if request.method == "POST":
         donnees = dict(request.form)
     else:
@@ -133,6 +134,34 @@ def creer(type_mouvement: str):
         if donnees.get("source_evenement_id") and not donnees.get("date"):
             from datetime import date as _date
             donnees["date"] = _date.today().isoformat()
+
+        # Pré-remplissage suggéré quand on honore un rappel DCA : quantité et
+        # prix estimés d'après le dernier cours importé du titre (éditables ;
+        # on ne touche à rien si l'utilisateur a déjà fourni les valeurs).
+        if (
+            type_mouvement == "achat"
+            and donnees.get("source_evenement_id")
+            and donnees.get("titre_id")
+            and donnees.get("montant_cible")
+        ):
+            from app.services import virements_programmes as svc_vp
+
+            titre = next(
+                (
+                    t
+                    for t in depot.charger("titres")
+                    if t.get("id") == donnees.get("titre_id")
+                ),
+                None,
+            )
+            sugg = svc_vp.suggestion_achat_dca(donnees.get("montant_cible"), titre)
+            if sugg:
+                donnees.setdefault("quantite", str(sugg["quantite"]))
+                donnees.setdefault("prix_unitaire", str(sugg["prix_unitaire"]))
+                suggestion_dca = {
+                    "cours": sugg["cours"],
+                    "date": sugg["date_cours"],
+                }
 
     source_watch_id = donnees.get("source_ordre_watch_id")
     source_ordre_id = donnees.get("source_ordre_id")
@@ -214,6 +243,7 @@ def creer(type_mouvement: str):
         source_watch=source_watch,
         source_evenement_id=source_evenement_id,
         source_evenement=source_evenement,
+        suggestion_dca=suggestion_dca,
     )
 
 
@@ -264,6 +294,11 @@ def supprimer(mouvement_id: str):
             flash("Mouvement introuvable.", "error")
     except ValueError as e:
         flash(str(e), "error")
+    # Retour sur la page d'origine si fournie (ex. fiche titre), sinon journal.
+    # On n'accepte qu'un chemin interne (garde-fou open-redirect).
+    next_url = request.form.get("next")
+    if next_url and next_url.startswith("/") and not next_url.startswith("//"):
+        return redirect(next_url)
     return redirect(url_for("mouvements.liste"))
 
 

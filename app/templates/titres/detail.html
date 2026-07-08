@@ -285,6 +285,120 @@ Cherche l'actualité récente de {{ titre.ticker }} ({{ titre.nom }}), puis chal
     {% endif %}
   </section>
 
+  <div class="col-droite">
+  <section class="bloc">
+    <h2>📋 Ordres actifs</h2>
+    <p class="muted" style="font-size:.82rem;margin:.1rem 0 .6rem">
+      Ordre limite chez le broker pour ce titre (mêmes données que la watchlist).
+    </p>
+    {% if ordres_actifs %}
+      <ul class="liste-ordres" style="list-style:none;padding:0;margin:0 0 .6rem">
+        {% for o in ordres_actifs %}
+          <li style="padding:.4rem .6rem;background:var(--gris-fond);border-radius:3px;margin-bottom:.3rem">
+            <span class="pill">{{ 'Vente' if o.sens == 'vente' else 'Achat' }}</span>
+            <strong>{{ o.prix_limite }} {{ symbole }}</strong> × {{ o.quantite|quantite }}
+            {% if o.validite %}<span class="muted">— validité {{ o.validite|date_courte }}</span>{% endif %}
+            {% if o.note %}<div><small class="muted">{{ o.note }}</small></div>{% endif %}
+            <div class="actions-ordre" style="margin-top:.3rem">
+              {% if watch_liee %}
+                <a class="btn-icone" title="Marquer exécuté (crée un mouvement de {{ 'vente' if o.sens == 'vente' else 'achat' }})"
+                   href="{{ url_for('mouvements.creer',
+                          type_mouvement=(o.sens or 'achat'),
+                          source_ordre_watch_id=watch_liee.id,
+                          source_ordre_id=o.id,
+                          compte_id=watch_liee.compte_cible,
+                          titre_id=titre.id,
+                          quantite=o.quantite,
+                          prix_unitaire=o.prix_limite,
+                          prix_unitaire_vente=o.prix_limite,
+                          devise=titre.devise) }}">✓ Exécuter</a>
+                <form method="post" style="display:inline"
+                      action="{{ url_for('watchlist.annuler_ordre', watch_id=watch_liee.id, ordre_id=o.id) }}"
+                      onsubmit="return confirm('Annuler cet ordre ?');">
+                  <input type="hidden" name="next" value="{{ url_for('titres.detail', titre_id=titre.id) }}">
+                  <button type="submit" class="btn-icone" title="Annuler l'ordre">✗ Annuler</button>
+                </form>
+              {% endif %}
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">Aucun ordre actif.</p>
+    {% endif %}
+
+    {% set actif = ordres_actifs[0] if ordres_actifs else {} %}
+    <details class="ajout-ordre"{% if not ordres_actifs %} open{% endif %}>
+      <summary style="cursor:pointer;color:var(--bleu-france)">
+        {{ 'Modifier l’ordre' if ordres_actifs else 'Ajouter un ordre' }}
+      </summary>
+      <form method="post" action="{{ url_for('titres.enregistrer_ordre', titre_id=titre.id) }}" class="form-compact" style="margin-top:.5rem">
+        <label class="champ"><span>Sens</span>
+          <select name="ordre_sens">
+            <option value="achat" {% if (actif.sens or 'achat') == 'achat' %}selected{% endif %}>Achat</option>
+            <option value="vente" {% if actif.sens == 'vente' %}selected{% endif %}>Vente</option>
+          </select>
+        </label>
+        <label class="champ"><span>Prix limite ({{ symbole }})</span>
+          <input type="number" step="0.0001" name="ordre_prix" value="{{ actif.prix_limite or '' }}" placeholder="17">
+        </label>
+        <label class="champ"><span>Quantité</span>
+          <input type="number" step="0.0001" name="ordre_quantite" value="{{ actif.quantite or '' }}" placeholder="5">
+        </label>
+        <label class="champ"><span>Validité</span>
+          <input type="date" name="ordre_validite" value="{{ actif.validite or '' }}">
+        </label>
+        <label class="champ"><span>Note</span>
+          <input type="text" name="ordre_note" value="{{ actif.note or '' }}" placeholder="optionnel">
+        </label>
+        <input type="hidden" name="ordre_id" value="{{ actif.id or '' }}">
+        <input type="hidden" name="ordre_date_creation" value="{{ actif.date_creation or '' }}">
+        <div style="margin-top:.4rem">
+          <button type="submit" class="btn btn-primary">{{ 'Enregistrer' if ordres_actifs else 'Ajouter l’ordre' }}</button>
+          <small class="muted" style="display:block;margin-top:.25rem">Vider le prix puis Enregistrer = annuler l'ordre.</small>
+        </div>
+      </form>
+    </details>
+  </section>
+
+  <section class="bloc">
+    <h2>🎯 Plan de rachat indicatif</h2>
+    <p class="muted" style="font-size:.82rem;margin:.1rem 0 .6rem">
+      Paliers de prix cibles — indicatif (planification, pas d'ordre chez le broker).
+    </p>
+    {% if paliers %}
+      <ul class="paliers" style="margin:0 0 .6rem">
+        {% for p in paliers %}
+          <li>
+            <strong>{{ p.prix }} {{ symbole }}</strong>
+            {% if p.tranche %} — {{ p.tranche }}{% endif %}
+            {% if p.commentaire %} <span class="muted">({{ p.commentaire }})</span>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">Aucun palier défini.</p>
+    {% endif %}
+    <details class="edit-paliers"{% if not paliers %} open{% endif %}>
+      <summary style="cursor:pointer;color:var(--bleu-france)">{{ 'Modifier le plan' if paliers else 'Définir le plan' }}</summary>
+      <form method="post" action="{{ url_for('titres.enregistrer_paliers', titre_id=titre.id) }}" class="form-compact" style="margin-top:.5rem">
+        <label class="champ"><span>Prix cible ({{ symbole }}) — un par ligne</span>
+          <textarea name="paliers_prix" rows="3" placeholder="18&#10;16">{{ paliers_txt.prix }}</textarea>
+        </label>
+        <label class="champ"><span>Tranche — une par ligne</span>
+          <textarea name="paliers_tranche" rows="3" placeholder="5/10&#10;10/10">{{ paliers_txt.tranche }}</textarea>
+        </label>
+        <label class="champ"><span>Commentaire — un par ligne</span>
+          <textarea name="paliers_commentaire" rows="3" placeholder="Premier achat&#10;Renforcement">{{ paliers_txt.commentaire }}</textarea>
+        </label>
+        <div style="margin-top:.4rem">
+          <button type="submit" class="btn btn-primary">Enregistrer le plan</button>
+          <small class="muted" style="display:block;margin-top:.25rem">Une ligne = un palier (les 3 colonnes alignées). Tout vider = supprimer le plan.</small>
+        </div>
+      </form>
+    </details>
+  </section>
+
   <section class="bloc">
     <h2>Fiche</h2>
     {# Dernier snapshot historique pour calcul des deltas Yahoo #}
@@ -394,6 +508,7 @@ Cherche l'actualité récente de {{ titre.ticker }} ({{ titre.nom }}), puis chal
       </details>
     {% endif %}
   </section>
+  </div>{# /col-droite #}
 </div>
 
 {% if titre.historique_theses %}
@@ -487,6 +602,10 @@ Cherche l'actualité récente de {{ titre.ticker }} ({{ titre.nom }}), puis chal
             </td>
             <td class="actions">
               <a href="{{ url_for('mouvements.editer', mouvement_id=m.id) }}" title="Éditer">✎</a>
+              <form method="post" action="{{ url_for('mouvements.supprimer', mouvement_id=m.id) }}" style="display:inline" onsubmit="return confirm('Supprimer ce mouvement ?');">
+                <input type="hidden" name="next" value="{{ url_for('titres.detail', titre_id=titre.id) }}">
+                <button type="submit" class="btn-icone" title="Supprimer">🗑</button>
+              </form>
             </td>
           </tr>
         {% endfor %}

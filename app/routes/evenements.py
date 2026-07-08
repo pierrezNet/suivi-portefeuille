@@ -16,6 +16,7 @@ from flask import (
 )
 
 from app.services import evenements as svc
+from app.services import virements_programmes as svc_vp
 
 
 bp = Blueprint("evenements", __name__, url_prefix="/evenements")
@@ -61,23 +62,9 @@ def liste():
     }
     info_dca_par_id: dict[str, dict] = {}
     for e in items:
-        if not e.get("id", "").startswith("e-dca-"):
-            continue
-        if e.get("mouvement_id"):
-            continue  # déjà honoré
-        vp_id = e.get("virement_programme_id")
-        if not vp_id:
-            continue
-        vp = programmes_par_id.get(vp_id)
-        if not vp:
-            continue
-        titre = titres_par_id.get(vp.get("titre_id")) or {}
-        info_dca_par_id[e["id"]] = {
-            "compte_id": vp.get("compte_id"),
-            "titre_id": vp.get("titre_id"),
-            "devise": titre.get("devise") or vp.get("devise") or "EUR",
-            "montant_cible": vp.get("montant"),
-        }
+        info = svc_vp.info_dca_pour_rappel(e, programmes_par_id, titres_par_id)
+        if info is not None:
+            info_dca_par_id[e["id"]] = info
 
     return render_template(
         "evenements/liste.html",

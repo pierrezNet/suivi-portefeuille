@@ -17,6 +17,58 @@ SENS_ORDRE = ("achat", "vente")
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
+def reserve_cash_par_compte(
+    watchlist: list[dict], *, today_iso: str | None = None
+) -> dict[str, dict]:
+    """Cash réservé par les ordres d'ACHAT en attente, groupé par compte cible.
+
+    Un ordre d'achat en attente (statut ``en_attente``, non expiré) « bloque »
+    ``prix_limite × quantite`` chez le broker tant qu'il n'est pas exécuté.
+    Renvoie ``{compte_id: {"total": Decimal, "ordres": [ {ticker, prix_limite,
+    quantite, montant} ]}}``.
+
+    Règles : les ordres de **vente** ne réservent pas de cash ; un ordre sans
+    ``sens`` est considéré comme un achat ; un ordre expiré (``validite`` <
+    ``today_iso``) est exclu (le broker ne le réserve plus) ; une entrée
+    watchlist sans ``compte_cible`` est ignorée.
+    """
+    reserve: dict[str, dict] = {}
+    for w in watchlist or []:
+        compte_id = w.get("compte_cible")
+        if not compte_id:
+            continue
+        ticker = w.get("ticker") or w.get("nom") or ""
+        for o in w.get("ordres_actifs") or []:
+            if o.get("statut") != "en_attente":
+                continue
+            if (o.get("sens") or "achat") != "achat":
+                continue
+            validite = o.get("validite") or ""
+            if today_iso and validite and validite < today_iso:
+                continue
+            try:
+                montant = Decimal(str(o.get("prix_limite"))) * Decimal(
+                    str(o.get("quantite"))
+                )
+            except (InvalidOperation, TypeError, ValueError):
+                continue
+            entree = reserve.setdefault(
+                compte_id, {"total": Decimal("0.00"), "ordres": []}
+            )
+            entree["total"] += montant
+            entree["ordres"].append(
+                {
+                    "ticker": ticker,
+                    "prix_limite": o.get("prix_limite"),
+                    "quantite": o.get("quantite"),
+                    "montant": montant.quantize(Decimal("0.01")),
+                }
+            )
+    for entree in reserve.values():
+        entree["total"] = entree["total"].quantize(Decimal("0.01"))
+    return reserve
+
+
 class ErreursValidation(Exception):
     def __init__(self, erreurs: dict[str, str]):
         self.erreurs = erreurs
@@ -326,6 +378,94 @@ def marquer_ordre(
             depot.enregistrer("watchlist", items)
             return True
     return False
+
+
+def trouver_watch_par_titre(depot: Depot, titre_id: str) -> dict | None:
+    """Première entrée watchlist reliée à ce titre (`titre_id`), ou None."""
+    if not titre_id:
+        return None
+    for w in depot.charger("watchlist"):
+        if w.get("titre_id") == titre_id:
+            return w
+    return None
+
+
+def fusionner_ordre_actif(ordre_form: dict, ordres_existants: list[dict] | None) -> list[dict]:
+    """Liste `ordres_actifs` finale = ordres déjà clos (statut ≠ en_attente)
+    conservés + au plus 1 ordre actif issu du formulaire (champs `ordre_prix/
+    quantite/validite/note/sens/id/date_creation`).
+
+    Vider `ordre_prix` = pas d'ordre actif (l'ancien actif, s'il existait, n'est
+    pas repris → annulation silencieuse). Renvoie des dicts BRUTS ; la
+    validation/normalisation se fait ensuite via `_parse_ordres`.
+    """
+    finaux = [
+        o for o in (ordres_existants or []) if o.get("statut") != "en_attente"
+    ]
+    prix = (ordre_form.get("ordre_prix") or "").strip()
+    if prix:
+        finaux.append({
+            "prix_limite": prix,
+            "quantite": ordre_form.get("ordre_quantite", ""),
+            "validite": ordre_form.get("ordre_validite", ""),
+            "note": ordre_form.get("ordre_note", ""),
+            "sens": ordre_form.get("ordre_sens", "achat"),
+            "statut": "en_attente",
+            "id": ordre_form.get("ordre_id") or "",
+            "date_creation": ordre_form.get("ordre_date_creation") or "",
+        })
+    return finaux
+
+
+def definir_ordre_actif(depot: Depot, watch_id: str, ordre_form: dict) -> dict:
+    """Pose / remplace / retire l'ordre actif d'une watch à partir des champs
+    `ordre_*` d'un formulaire, en préservant les ordres déjà clos. Valide via
+    `_parse_ordres` (peut lever ValueError). Renvoie la watch mise à jour."""
+    items = depot.charger("watchlist")
+    for i, w in enumerate(items):
+        if w.get("id") != watch_id:
+            continue
+        w["ordres_actifs"] = _parse_ordres(
+            fusionner_ordre_actif(ordre_form, w.get("ordres_actifs"))
+        )
+        items[i] = w
+        depot.enregistrer("watchlist", items)
+        return w
+    raise KeyError(watch_id)
+
+
+def _paliers_depuis_formulaire(form: dict) -> list[dict]:
+    """Champs multilignes `paliers_prix/tranche/commentaire` (une ligne = un
+    palier) → liste de dicts brute (validée ensuite par `_parse_paliers`)."""
+    prix_lines = _str_propre(form.get("paliers_prix")).splitlines()
+    tranche_lines = _str_propre(form.get("paliers_tranche")).splitlines()
+    comm_lines = _str_propre(form.get("paliers_commentaire")).splitlines()
+    liste = []
+    for i, prix in enumerate(prix_lines):
+        prix = prix.strip()
+        if not prix:
+            continue
+        liste.append({
+            "prix": prix,
+            "tranche": tranche_lines[i].strip() if i < len(tranche_lines) else "",
+            "commentaire": comm_lines[i].strip() if i < len(comm_lines) else "",
+        })
+    return liste
+
+
+def definir_paliers(depot: Depot, watch_id: str, form: dict) -> dict:
+    """Remplace le plan de rachat (paliers indicatifs) d'une watch à partir des
+    champs multilignes du formulaire. Valide via `_parse_paliers` (peut lever
+    ValueError). Renvoie la watch mise à jour."""
+    items = depot.charger("watchlist")
+    for i, w in enumerate(items):
+        if w.get("id") != watch_id:
+            continue
+        w["paliers_rachat"] = _parse_paliers(_paliers_depuis_formulaire(form))
+        items[i] = w
+        depot.enregistrer("watchlist", items)
+        return w
+    raise KeyError(watch_id)
 
 
 def basculer_actif_vers_renforcement(depot: Depot, titre_id: str) -> list[str]:

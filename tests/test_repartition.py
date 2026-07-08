@@ -60,18 +60,16 @@ def test_repartition_par_compte():
     assert r[0]["label"] == "CTO BD"
 
 
-def test_repartition_par_secteur():
-    r = repartition_par_axe(_vue_comptes(), _titres_par_id(), "secteur")
+def test_repartition_par_categorie():
+    r = repartition_par_axe(_vue_comptes(), _titres_par_id(), "categorie")
     par_label = {x["label"]: x["valeur"] for x in r}
-    # Internet infra : 300 (NET)
-    # ETF : 200 (DCAM)
-    # Semi-conducteurs : 100 (STM, IFX ignoré car valo None)
-    # Logiciel : 100 (GTLB)
+    # NET "Internet infra" (300) + GTLB "Logiciel" (100) → Logiciel & Cloud
+    # DCAM "ETF" (200) → ETF diversifiés
+    # STM "Semi-conducteurs" (100 ; IFX ignoré car valo None) → Semi-conducteurs
     assert par_label == {
-        "Internet infra": Decimal("300"),
-        "ETF": Decimal("200"),
+        "Logiciel & Cloud": Decimal("400"),
+        "ETF diversifiés": Decimal("200"),
         "Semi-conducteurs": Decimal("100"),
-        "Logiciel": Decimal("100"),
     }
 
 
@@ -81,16 +79,16 @@ def test_repartition_par_devise():
     assert par_label == {"EUR": Decimal("300"), "USD": Decimal("400")}
 
 
-def test_repartition_secteur_manquant_devient_sans_secteur():
+def test_repartition_categorie_inconnue_devient_autre():
     vue = [{"compte": {"id": "x", "nom": "X"}, "positions": [
         {"titre_id": "t1", "valo_eur": Decimal("100")},
         {"titre_id": "t2", "valo_eur": Decimal("50")},
     ]}]
     titres = {"t1": {"secteur": "", "devise": "EUR"},
               "t2": {"devise": "EUR"}}
-    r = repartition_par_axe(vue, titres, "secteur")
+    r = repartition_par_axe(vue, titres, "categorie")
     assert len(r) == 1
-    assert r[0]["label"] == "Sans secteur"
+    assert r[0]["label"] == "Autre"
     assert r[0]["valeur"] == Decimal("150")
 
 
