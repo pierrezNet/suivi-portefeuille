@@ -4,6 +4,30 @@ Historique des livraisons. Format inspiré de [Keep a Changelog](https://keepach
 
 ---
 
+## [v2.1] — 2026-07-08 · Gestion depuis la fiche & clarté trésorerie
+
+Session de raffinements : investir via le DCA devient fluide, la **fiche titre** devient le centre de gestion (mouvements, ordres, plan de rachat), et le tableau de bord gagne en clarté (trésorerie, catégories).
+
+### Ajouts
+
+- **DCA fluidifié** — bouton « ✓ Enregistrer l'achat » directement sur la page Programmes, et **pré-remplissage** de la quantité et du prix du formulaire d'achat depuis le dernier cours importé (`cours_jour_eur`). ([app/services/virements_programmes.py](app/services/virements_programmes.py))
+- **Panneau Trésorerie** au tableau de bord — cascade Versements/Ventes/Dividendes − Achats/Frais/Retraits = Solde espèces, puis − ordres d'achat en attente = **Disponible au comptant**, par compte. ([app/services/soldes.py](app/services/soldes.py))
+- **Camembert « Par catégorie »** — champ `categorie` contrôlé sur les titres + classifieur automatique + **migration v2** de backfill. Fini le patchwork de secteurs libres. ([app/services/categories.py](app/services/categories.py))
+- **Ordres actifs & plan de rachat gérables depuis la fiche titre** — mêmes données que la watchlist (source unique), création automatique d'une watch si absente. ([app/routes/titres.py](app/routes/titres.py))
+- **Suppression d'un mouvement depuis l'historique de la fiche** (retour sur la fiche via `next`). ([app/routes/mouvements.py](app/routes/mouvements.py))
+
+### Modifications
+
+- **Programmes** — les indicateurs distinguent l'**investissement (DCA)** de l'**alimentation (cash)** ; « Prochain investissement » pointe le prochain DCA réel, pas le virement de financement. Bouton de rattrapage renommé « Générer les échéances manquantes » + confirmation rassurante.
+- **Mobile** — Trésorerie desktop-only (retirée de l'export chiffré) ; camembert « Par catégorie ». Correctif service worker (cache toujours rafraîchi → plus de `data.enc.json` périmé).
+
+### Technique
+
+- Suite de tests portée à **413** verts (`test_categories`, `test_dca_flux`, `test_tresorerie`, `test_ordres_fiche`, `test_mouvements_suppression`).
+- Migration de schéma **v2** (backfill `categorie`) appliquée au démarrage, avec sauvegarde.
+
+---
+
 ## [v2.0] — 2026-06-08 · Pivot UX / valorisation
 
 Refonte massive de l'expérience : on passe d'un journal de bord pur à un **outil de pilotage complet** avec valorisation au jour J, graphiques, et expérience mobile native.
