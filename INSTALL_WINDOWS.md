@@ -66,7 +66,29 @@ sans perdre tes données** — elles ne sont pas dans le dossier du programme.
 
 ---
 
-## 4. Sauvegarder mes données
+## 4. Mettre à jour (nouvelle version)
+
+Tes données étant rangées **hors** du dossier du programme (voir § 3), mettre à
+jour ne les touche pas. C'est aussi simple que la première installation :
+
+1. Récupère le nouveau `Suivi-Portefeuille-windows.zip` (comme la première fois)
+   et **Extrais-le**.
+2. **Remplace l'ancien dossier `Suivi-Portefeuille`** par le nouveau (ou garde-le
+   à côté et lance le nouvel `.exe`).
+3. Double-clique sur le nouveau `Suivi-Portefeuille.exe`. Tes données dans
+   `%LOCALAPPDATA%\Suivi-Portefeuille\data` sont **inchangées**.
+
+> ⚠️ C'est un **dossier complet**, pas un seul fichier : remplace **tout le
+> dossier** extrait, pas uniquement le `.exe` (il a besoin de son dossier
+> `_internal/` juste à côté pour fonctionner).
+
+Au premier lancement d'une nouvelle version, l'app peut **mettre à jour le format
+interne** de tes données (ajout de champs, etc.). Elle crée d'abord une
+**sauvegarde automatique** (voir § 5) : c'est sans risque et réversible.
+
+---
+
+## 5. Sauvegarder mes données
 
 - L'application crée **automatiquement une sauvegarde** (archives `.zip` dans le
   dossier `backups` à côté de `data`) avant toute mise à jour interne du format.
@@ -83,7 +105,7 @@ sans perdre tes données** — elles ne sont pas dans le dossier du programme.
 
 ---
 
-## 5. Premiers pas
+## 6. Premiers pas
 
 Au tout premier lancement, l'app t'accueille avec un **écran de démarrage** :
 
@@ -100,7 +122,7 @@ avant de saisir tes vraies données.
 
 ---
 
-## 6. Problèmes courants
+## 7. Problèmes courants
 
 | Symptôme | Solution |
 |---|---|
