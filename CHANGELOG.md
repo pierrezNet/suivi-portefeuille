@@ -26,6 +26,10 @@ Session de raffinements : investir via le DCA devient fluide, la **fiche titre**
 - Suite de tests portée à **413** verts (`test_categories`, `test_dca_flux`, `test_tresorerie`, `test_ordres_fiche`, `test_mouvements_suppression`).
 - Migration de schéma **v2** (backfill `categorie`) appliquée au démarrage, avec sauvegarde.
 
+### Sécurité
+
+- **`cryptography` 48.0.0 → 48.0.1** — les wheels < 48.0.1 embarquaient un OpenSSL vulnérable ([advisory 2026-06-09](https://openssl-library.org/news/secadv/20260609.txt)). Corrige l'alerte Dependabot.
+
 ---
 
 ## [v2.0] — 2026-06-08 · Pivot UX / valorisation
