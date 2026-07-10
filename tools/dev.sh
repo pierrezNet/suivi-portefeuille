@@ -32,5 +32,19 @@ echo "▶ Mode dev : run.py avec env vars du drop-in systemd"
 echo "  Bouton « Publier vers mobile » fonctionnel."
 echo
 
-exec env $(sed -n 's/^Environment="\(.*\)"$/\1/p' "$DROPIN") \
-     "$PROJET/.venv/bin/python" "$PROJET/run.py"
+(
+  for _ in $(seq 1 30); do
+    if (exec 3<>/dev/tcp/127.0.0.1/5000) 2>/dev/null; then
+      exec 3<&- 3>&-
+      xdg-open "http://127.0.0.1:5000" >/dev/null 2>&1
+      exit 0
+    fi
+    sleep 0.5
+  done
+) &
+
+while IFS= read -r ligne; do
+  export "$ligne"
+done < <(sed -n 's/^Environment="\(.*\)"$/\1/p' "$DROPIN")
+
+exec "$PROJET/.venv/bin/python" "$PROJET/run.py"
