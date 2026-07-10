@@ -116,3 +116,16 @@ def test_coordonnees_svg_polyline_format():
     y1 = int(coords[0].split(",")[1])
     y2 = int(coords[1].split(",")[1])
     assert y2 < y1
+    # Champs d'enrichissement du graphique
+    assert len(c["points_xy"]) == 2
+    assert c["aire"].startswith("M ") and c["aire"].rstrip().endswith("Z")
+    assert c["hausse"] is True  # 1000 → 2000
+
+
+def test_coordonnees_svg_tendance_baisse():
+    points = [
+        {"mois": "2026-05", "portefeuille_total": Decimal("2000")},
+        {"mois": "2026-06", "portefeuille_total": Decimal("1500")},
+    ]
+    c = svc.coordonnees_svg(points)
+    assert c["hausse"] is False

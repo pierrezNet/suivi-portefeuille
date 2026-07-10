@@ -102,6 +102,9 @@ def coordonnees_svg(
     if not points:
         return {
             "polyline": "",
+            "points_xy": [],
+            "aire": "",
+            "hausse": True,
             "labels_x": [],
             "min": Decimal("0"),
             "max": Decimal("0"),
@@ -118,19 +121,37 @@ def coordonnees_svg(
 
     aire_l = largeur - 2 * marge
     aire_h = hauteur - 2 * marge
+    base_y = hauteur - marge
 
-    coords: list[str] = []
+    # Respiration verticale : ~15 % de marge en haut et en bas pour que la
+    # courbe ne soit pas collée aux bords (surtout avec peu de points).
+    pad = plage * Decimal("0.15")
+    lo = vmin - pad
+    span = plage + 2 * pad
+
+    xy: list[tuple[int, int]] = []
     labels_x: list[dict] = []
     n = len(points)
     for i, p in enumerate(points):
         x = marge if n == 1 else marge + int(i * aire_l / (n - 1))
-        ratio = (p["portefeuille_total"] - vmin) / plage
-        y = (hauteur - marge) - int(float(ratio) * aire_h)
-        coords.append(f"{x},{y}")
+        ratio = (p["portefeuille_total"] - lo) / span
+        y = base_y - int(float(ratio) * aire_h)
+        xy.append((x, y))
         labels_x.append({"x": x, "texte": p["mois"][5:] + "/" + p["mois"][2:4]})
 
+    # Aire sous la courbe (pour un remplissage dégradé) : on ferme le tracé sur
+    # la ligne de base.
+    aire = (
+        f"M {xy[0][0]},{base_y} "
+        + " ".join(f"L {x},{y}" for x, y in xy)
+        + f" L {xy[-1][0]},{base_y} Z"
+    )
+
     return {
-        "polyline": " ".join(coords),
+        "polyline": " ".join(f"{x},{y}" for x, y in xy),
+        "points_xy": [{"x": x, "y": y} for x, y in xy],
+        "aire": aire,
+        "hausse": valeurs[-1] >= valeurs[0],
         "labels_x": labels_x,
         "min": vmin,
         "max": vmax,

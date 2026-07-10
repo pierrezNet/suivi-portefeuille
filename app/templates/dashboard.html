@@ -102,20 +102,37 @@
   <header class="bloc-equity-header">
     <h2>Évolution du portefeuille</h2>
     <span class="muted">
-      {{ equity_points|length }} mois · de
-      {{ equity_coords.premier|euros }} à <strong>{{ equity_coords.dernier|euros }}</strong>
+      {{ equity_points|length }} mois · de {{ equity_coords.premier|euros }} à <strong>{{ equity_coords.dernier|euros }}</strong>
+      {% if equity_coords.premier and equity_coords.premier > 0 %}
+        {% set pct = ((equity_coords.dernier - equity_coords.premier) / equity_coords.premier * 100)|float|round(1) %}
+        <strong style="color: {{ '#18753c' if pct >= 0 else '#ce0500' }}">({{ '+' if pct >= 0 else '' }}{{ pct }}&nbsp;%)</strong>
+      {% endif %}
     </span>
   </header>
+  {% set couleur = '#18753c' if equity_coords.hausse else '#ce0500' %}
   <svg viewBox="0 0 {{ equity_coords.largeur }} {{ equity_coords.hauteur }}"
        xmlns="http://www.w3.org/2000/svg" class="equity-svg" role="img"
        aria-label="Évolution mensuelle du portefeuille">
-    {# Cadre #}
+    <defs>
+      <linearGradient id="equity-fill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="{{ couleur }}" stop-opacity="0.20"/>
+        <stop offset="100%" stop-color="{{ couleur }}" stop-opacity="0.02"/>
+      </linearGradient>
+    </defs>
+    {# Ligne de base #}
     <line x1="{{ equity_coords.marge }}" y1="{{ equity_coords.hauteur - equity_coords.marge }}"
           x2="{{ equity_coords.largeur - equity_coords.marge }}" y2="{{ equity_coords.hauteur - equity_coords.marge }}"
-          stroke="#ddd" stroke-width="1"/>
-    {# Polyline #}
-    <polyline fill="none" stroke="var(--bleu-france)" stroke-width="2"
+          stroke="#eee" stroke-width="1"/>
+    {# Aire sous la courbe #}
+    <path d="{{ equity_coords.aire }}" fill="url(#equity-fill)" stroke="none"/>
+    {# Courbe #}
+    <polyline fill="none" stroke="{{ couleur }}" stroke-width="2.5"
+              stroke-linejoin="round" stroke-linecap="round"
               points="{{ equity_coords.polyline }}"/>
+    {# Marqueurs #}
+    {% for pt in equity_coords.points_xy %}
+      <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="3.5" fill="#fff" stroke="{{ couleur }}" stroke-width="2"/>
+    {% endfor %}
     {# Min/max labels Y #}
     <text x="{{ equity_coords.largeur - 4 }}" y="{{ equity_coords.marge + 4 }}"
           text-anchor="end" font-size="10" fill="#666">{{ equity_coords.max|euros }}</text>
