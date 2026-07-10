@@ -304,7 +304,7 @@ def construire(
     watchlist_haute = lister_watchlist(depot, priorite="haute")[:6]
 
     # Série mensuelle pour la courbe d'équity (24 derniers mois)
-    points_equity = snapshots.serie_mensuelle(depot, mois=24)
+    points_equity = snapshots.serie_points(depot)
     coords_equity = snapshots.coordonnees_svg(points_equity)
 
     # Répartitions pour les camemberts d'allocation

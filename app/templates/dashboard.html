@@ -102,7 +102,7 @@
   <header class="bloc-equity-header">
     <h2>Évolution du portefeuille</h2>
     <span class="muted">
-      {{ equity_points|length }} mois · de {{ equity_coords.premier|euros }} à <strong>{{ equity_coords.dernier|euros }}</strong>
+      {{ equity_points|length }} relevés · de {{ equity_coords.premier|euros }} à <strong>{{ equity_coords.dernier|euros }}</strong>
       {% if equity_coords.premier and equity_coords.premier > 0 %}
         {% set pct = ((equity_coords.dernier - equity_coords.premier) / equity_coords.premier * 100)|float|round(1) %}
         <strong style="color: {{ '#18753c' if pct >= 0 else '#ce0500' }}">({{ '+' if pct >= 0 else '' }}{{ pct }}&nbsp;%)</strong>
@@ -149,7 +149,7 @@
     {% endfor %}
   </svg>
   <p class="muted bloc-equity-foot">
-    Mis à jour à chaque import xlsx. Un point par mois (dernier snapshot connu).
+    Mis à jour à chaque import xlsx. Un point par relevé (au plus un par jour).
   </p>
 </section>
 {% endif %}

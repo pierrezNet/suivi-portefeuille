@@ -77,6 +77,25 @@ def test_serie_mensuelle_limite_n_mois(depot):
     assert [p["mois"] for p in serie] == ["2026-10", "2026-11", "2026-12"]
 
 
+def test_serie_points_garde_tous_les_releves(depot):
+    # 3 relevés distincts LE MÊME MOIS → 3 points (et non 1 comme le mensuel)
+    _enreg(depot, jour="2026-06-08", total="1000")
+    _enreg(depot, jour="2026-06-16", total="1030")
+    _enreg(depot, jour="2026-06-24", total="1020")
+    serie = svc.serie_points(depot)
+    assert [p["portefeuille_total"] for p in serie] == [
+        Decimal("1000"), Decimal("1030"), Decimal("1020")]
+    assert serie[0]["label"] == "08/06"
+
+
+def test_serie_points_limite_aux_plus_recents(depot):
+    for j in range(1, 11):
+        _enreg(depot, jour=f"2026-06-{j:02d}", total=str(1000 + j))
+    serie = svc.serie_points(depot, max_points=3)
+    assert len(serie) == 3
+    assert serie[-1]["date"] == "2026-06-10"  # on garde les plus récents
+
+
 # --- Coordonnées SVG --------------------------------------------------------
 
 
@@ -129,3 +148,12 @@ def test_coordonnees_svg_tendance_baisse():
     ]
     c = svc.coordonnees_svg(points)
     assert c["hausse"] is False
+
+
+def test_coordonnees_svg_label_depuis_date():
+    points = [
+        {"label": "08/06", "portefeuille_total": Decimal("1000")},
+        {"label": "24/06", "portefeuille_total": Decimal("1020")},
+    ]
+    c = svc.coordonnees_svg(points)
+    assert [l["texte"] for l in c["labels_x"]] == ["08/06", "24/06"]

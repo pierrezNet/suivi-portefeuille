@@ -84,6 +84,32 @@ def serie_mensuelle(depot: Depot, *, mois: int = 12) -> list[dict]:
     return points
 
 
+def serie_points(depot: Depot, *, max_points: int = 180) -> list[dict]:
+    """Renvoie les snapshots RÉELS (déjà au plus un par jour), triés
+    chronologiquement, limités aux `max_points` plus récents.
+
+    Contrairement à `serie_mensuelle`, on NE réduit PAS à un point par mois :
+    chaque relevé (import) reste un point — on ne perd pas la granularité
+    quotidienne déjà présente dans les données.
+    """
+    snaps = [s for s in depot.charger("snapshots") if s.get("date")]
+    snaps.sort(key=lambda s: s.get("date") or "")
+    if max_points and len(snaps) > max_points:
+        snaps = snaps[-max_points:]
+    points = []
+    for s in snaps:
+        d = s.get("date") or ""
+        points.append({
+            "date": d,
+            "label": (d[8:10] + "/" + d[5:7]) if len(d) >= 10 else d,
+            "portefeuille_total": Decimal(s.get("portefeuille_total") or "0"),
+            "cash_total": Decimal(s.get("cash_total") or "0"),
+            "valo_titres_total": Decimal(s.get("valo_titres_total") or "0"),
+            "pv_latente_total": Decimal(s.get("pv_latente_total") or "0"),
+        })
+    return points
+
+
 def coordonnees_svg(
     points: list[dict],
     *,
@@ -137,7 +163,11 @@ def coordonnees_svg(
         ratio = (p["portefeuille_total"] - lo) / span
         y = base_y - int(float(ratio) * aire_h)
         xy.append((x, y))
-        labels_x.append({"x": x, "texte": p["mois"][5:] + "/" + p["mois"][2:4]})
+        texte = p.get("label")
+        if not texte:
+            m = p.get("mois") or ""
+            texte = (m[5:] + "/" + m[2:4]) if len(m) >= 7 else ""
+        labels_x.append({"x": x, "texte": texte})
 
     # Aire sous la courbe (pour un remplissage dégradé) : on ferme le tracé sur
     # la ligne de base.
