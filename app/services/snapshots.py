@@ -49,48 +49,13 @@ def enregistrer_snapshot(
     return snap
 
 
-def serie_mensuelle(depot: Depot, *, mois: int = 12) -> list[dict]:
-    """Renvoie au plus `mois` points, un par mois (le dernier snapshot du
-    mois prime). Trié chronologiquement croissant.
-
-    Chaque point :
-      {"mois": "2026-06", "portefeuille_total": Decimal,
-       "cash_total": Decimal, "valo_titres_total": Decimal,
-       "pv_latente_total": Decimal}
-    """
-    snaps = depot.charger("snapshots")
-    if not snaps:
-        return []
-    # Garder le dernier snapshot de chaque mois
-    par_mois: dict[str, dict] = {}
-    for s in sorted(snaps, key=lambda x: x.get("date") or ""):
-        d = s.get("date") or ""
-        if len(d) < 7:
-            continue
-        m = d[:7]
-        par_mois[m] = s
-
-    points = []
-    for mois_key in sorted(par_mois.keys())[-mois:]:
-        s = par_mois[mois_key]
-        points.append({
-            "mois": mois_key,
-            "date": s.get("date"),
-            "portefeuille_total": Decimal(s.get("portefeuille_total") or "0"),
-            "cash_total": Decimal(s.get("cash_total") or "0"),
-            "valo_titres_total": Decimal(s.get("valo_titres_total") or "0"),
-            "pv_latente_total": Decimal(s.get("pv_latente_total") or "0"),
-        })
-    return points
-
-
 def serie_points(depot: Depot, *, max_points: int = 180) -> list[dict]:
     """Renvoie les snapshots RÉELS (déjà au plus un par jour), triés
     chronologiquement, limités aux `max_points` plus récents.
 
-    Contrairement à `serie_mensuelle`, on NE réduit PAS à un point par mois :
-    chaque relevé (import) reste un point — on ne perd pas la granularité
-    quotidienne déjà présente dans les données.
+    On NE réduit PAS à un point par mois : chaque relevé (import) reste un
+    point — on ne perd pas la granularité quotidienne déjà présente dans les
+    données.
     """
     snaps = [s for s in depot.charger("snapshots") if s.get("date")]
     snaps.sort(key=lambda s: s.get("date") or "")

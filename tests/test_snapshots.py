@@ -1,4 +1,4 @@
-"""Tests snapshots + série mensuelle + coordonnées SVG."""
+"""Tests snapshots + série de points + coordonnées SVG."""
 
 from datetime import date
 from decimal import Decimal
@@ -51,30 +51,6 @@ def test_snapshots_tries_par_date(depot):
     _enreg(depot, jour="2026-07-02")
     dates = [s["date"] for s in depot.charger("snapshots")]
     assert dates == ["2026-05-15", "2026-06-08", "2026-07-02"]
-
-
-def test_serie_mensuelle_vide(depot):
-    assert svc.serie_mensuelle(depot) == []
-
-
-def test_serie_mensuelle_un_point_par_mois(depot):
-    # Deux snapshots en juin → seul le dernier compte
-    _enreg(depot, jour="2026-06-01", total="1000")
-    _enreg(depot, jour="2026-06-15", total="1200")
-    _enreg(depot, jour="2026-07-10", total="1300")
-    serie = svc.serie_mensuelle(depot)
-    assert len(serie) == 2
-    assert serie[0]["mois"] == "2026-06"
-    assert serie[0]["portefeuille_total"] == Decimal("1200")
-    assert serie[1]["mois"] == "2026-07"
-
-
-def test_serie_mensuelle_limite_n_mois(depot):
-    for m in range(1, 13):
-        _enreg(depot, jour=f"2026-{m:02d}-15", total=str(1000 + m * 10))
-    serie = svc.serie_mensuelle(depot, mois=3)
-    assert len(serie) == 3
-    assert [p["mois"] for p in serie] == ["2026-10", "2026-11", "2026-12"]
 
 
 def test_serie_points_garde_tous_les_releves(depot):
