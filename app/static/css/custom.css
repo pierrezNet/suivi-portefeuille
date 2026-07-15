@@ -1403,6 +1403,30 @@ textarea:focus-visible {
   font-size: 0.8rem;
   margin: 0.5rem 0 0;
 }
+.equity-legende {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  font-size: 0.8rem;
+  margin: 0.5rem 0 0;
+}
+.equity-legende span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.equity-legende i {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.equity-legende i.dash {
+  height: 0;
+  width: 14px;
+  border-top: 2px dashed #888;
+  border-radius: 0;
+}
 
 /* Footer */
 .footer {

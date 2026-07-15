@@ -110,26 +110,30 @@
     </span>
   </header>
   {% set couleur = '#18753c' if equity_coords.hausse else '#ce0500' %}
+  {% set couleur_pv = '#18753c' if equity_coords.pv_positive else '#ce0500' %}
   <svg viewBox="0 0 {{ equity_coords.largeur }} {{ equity_coords.hauteur }}"
        xmlns="http://www.w3.org/2000/svg" class="equity-svg" role="img"
-       aria-label="Évolution mensuelle du portefeuille">
+       aria-label="Évolution du portefeuille : total, capital investi et plus-values latentes">
     <defs>
-      <linearGradient id="equity-fill" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="{{ couleur }}" stop-opacity="0.20"/>
-        <stop offset="100%" stop-color="{{ couleur }}" stop-opacity="0.02"/>
+      <linearGradient id="pv-fill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="{{ couleur_pv }}" stop-opacity="0.28"/>
+        <stop offset="100%" stop-color="{{ couleur_pv }}" stop-opacity="0.06"/>
       </linearGradient>
     </defs>
-    {# Ligne de base #}
+    {# Ligne de base (axe) #}
     <line x1="{{ equity_coords.marge }}" y1="{{ equity_coords.hauteur - equity_coords.marge }}"
           x2="{{ equity_coords.largeur - equity_coords.marge }}" y2="{{ equity_coords.hauteur - equity_coords.marge }}"
           stroke="#eee" stroke-width="1"/>
-    {# Aire sous la courbe #}
-    <path d="{{ equity_coords.aire }}" fill="url(#equity-fill)" stroke="none"/>
-    {# Courbe #}
+    {# Bande = plus-value latente (entre « capital investi » et « total ») #}
+    <path d="{{ equity_coords.bande }}" fill="url(#pv-fill)" stroke="none"/>
+    {# Courbe « capital investi » (cash + coût) — pointillé discret #}
+    <polyline fill="none" stroke="#888" stroke-width="1.5" stroke-dasharray="4 3"
+              stroke-linejoin="round" points="{{ equity_coords.polyline_base }}"/>
+    {# Courbe « total » #}
     <polyline fill="none" stroke="{{ couleur }}" stroke-width="2.5"
               stroke-linejoin="round" stroke-linecap="round"
               points="{{ equity_coords.polyline }}"/>
-    {# Marqueurs #}
+    {# Marqueurs sur le total #}
     {% for pt in equity_coords.points_xy %}
       <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="3.5" fill="#fff" stroke="{{ couleur }}" stroke-width="2"/>
     {% endfor %}
@@ -138,7 +142,7 @@
           text-anchor="end" font-size="10" fill="#666">{{ equity_coords.max|euros }}</text>
     <text x="{{ equity_coords.largeur - 4 }}" y="{{ equity_coords.hauteur - equity_coords.marge - 4 }}"
           text-anchor="end" font-size="10" fill="#666">{{ equity_coords.min|euros }}</text>
-    {# Labels X (mois) — un sur 2 ou 3 si beaucoup #}
+    {# Labels X (jour/mois) — un sur N si beaucoup #}
     {% set pas = (equity_coords.labels_x|length / 6)|round(0, 'ceil')|int %}
     {% if pas < 1 %}{% set pas = 1 %}{% endif %}
     {% for lbl in equity_coords.labels_x %}
@@ -148,6 +152,12 @@
       {% endif %}
     {% endfor %}
   </svg>
+  <div class="equity-legende muted">
+    <span><i style="background:{{ couleur }}"></i> Total</span>
+    <span><i class="dash"></i> Capital investi</span>
+    <span><i style="background:{{ couleur_pv }};opacity:.55"></i> Plus-values latentes
+      <strong style="color:{{ couleur_pv }}">{{ '+' if equity_coords.dernier_pv >= 0 else '' }}{{ equity_coords.dernier_pv|euros }}</strong></span>
+  </div>
   <p class="muted bloc-equity-foot">
     Mis à jour à chaque import xlsx. Un point par relevé (au plus un par jour).
   </p>

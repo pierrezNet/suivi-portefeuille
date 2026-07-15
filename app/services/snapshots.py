@@ -128,9 +128,12 @@ def coordonnees_svg(
     if not points:
         return {
             "polyline": "",
+            "polyline_base": "",
+            "bande": "",
             "points_xy": [],
-            "aire": "",
             "hausse": True,
+            "pv_positive": True,
+            "dernier_pv": Decimal("0"),
             "labels_x": [],
             "min": Decimal("0"),
             "max": Decimal("0"),
@@ -138,9 +141,15 @@ def coordonnees_svg(
             "hauteur": hauteur,
             "marge": marge,
         }
-    valeurs = [p["portefeuille_total"] for p in points]
-    vmin = min(valeurs)
-    vmax = max(valeurs)
+
+    def _pv(p):
+        return p.get("pv_latente_total") or Decimal("0")
+
+    totaux = [p["portefeuille_total"] for p in points]
+    # « Capital investi » = cash + coût des titres = total − plus-value latente.
+    bases = [p["portefeuille_total"] - _pv(p) for p in points]
+    vmin = min(min(totaux), min(bases))
+    vmax = max(max(totaux), max(bases))
     plage = vmax - vmin
     if plage == 0:
         plage = Decimal("1")  # éviter division par zéro
@@ -155,38 +164,44 @@ def coordonnees_svg(
     lo = vmin - pad
     span = plage + 2 * pad
 
-    xy: list[tuple[int, int]] = []
+    def _y(valeur: Decimal) -> int:
+        return base_y - int(float((valeur - lo) / span) * aire_h)
+
+    xy_total: list[tuple[int, int]] = []
+    xy_base: list[tuple[int, int]] = []
     labels_x: list[dict] = []
     n = len(points)
     for i, p in enumerate(points):
         x = marge if n == 1 else marge + int(i * aire_l / (n - 1))
-        ratio = (p["portefeuille_total"] - lo) / span
-        y = base_y - int(float(ratio) * aire_h)
-        xy.append((x, y))
+        xy_total.append((x, _y(p["portefeuille_total"])))
+        xy_base.append((x, _y(p["portefeuille_total"] - _pv(p))))
         texte = p.get("label")
         if not texte:
             m = p.get("mois") or ""
             texte = (m[5:] + "/" + m[2:4]) if len(m) >= 7 else ""
         labels_x.append({"x": x, "texte": texte})
 
-    # Aire sous la courbe (pour un remplissage dégradé) : on ferme le tracé sur
-    # la ligne de base.
-    aire = (
-        f"M {xy[0][0]},{base_y} "
-        + " ".join(f"L {x},{y}" for x, y in xy)
-        + f" L {xy[-1][0]},{base_y} Z"
-    )
+    # Bande = plus-value latente : entre la courbe « capital investi » (base) et
+    # le total. Base à l'aller, total au retour, tracé fermé.
+    d_parts = [f"M {xy_base[0][0]},{xy_base[0][1]}"]
+    d_parts += [f"L {x},{y}" for x, y in xy_base[1:]]
+    d_parts += [f"L {x},{y}" for x, y in reversed(xy_total)]
+    d_parts.append("Z")
+    bande = " ".join(d_parts)
 
     return {
-        "polyline": " ".join(f"{x},{y}" for x, y in xy),
-        "points_xy": [{"x": x, "y": y} for x, y in xy],
-        "aire": aire,
-        "hausse": valeurs[-1] >= valeurs[0],
+        "polyline": " ".join(f"{x},{y}" for x, y in xy_total),
+        "polyline_base": " ".join(f"{x},{y}" for x, y in xy_base),
+        "bande": bande,
+        "points_xy": [{"x": x, "y": y} for x, y in xy_total],
+        "hausse": totaux[-1] >= totaux[0],
+        "pv_positive": _pv(points[-1]) >= 0,
+        "dernier_pv": _pv(points[-1]),
         "labels_x": labels_x,
         "min": vmin,
         "max": vmax,
-        "dernier": valeurs[-1],
-        "premier": valeurs[0],
+        "dernier": totaux[-1],
+        "premier": totaux[0],
         "largeur": largeur,
         "hauteur": hauteur,
         "marge": marge,
