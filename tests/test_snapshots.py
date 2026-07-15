@@ -193,6 +193,13 @@ def test_coordonnees_svg_base_surchargee():
     assert c["derniere_bande"] == Decimal("300")   # 1500 − 1200
     assert c["bande_positive"] is True
     assert len(c["polyline_base"].split()) == 2
+    # La courbe TRACÉE (pas seulement l'échelle) honore la base surchargée :
+    # base < total → la courbe basse est sous le total (y plus grand) et
+    # distincte de lui (régression : le tracé ignorait la clé « base »).
+    assert c["polyline_base"] != c["polyline"]
+    y_total = [int(pt.split(",")[1]) for pt in c["polyline"].split()]
+    y_base = [int(pt.split(",")[1]) for pt in c["polyline_base"].split()]
+    assert all(yb > yt for yb, yt in zip(y_base, y_total))
 
 
 def test_coordonnees_svg_chemin_lisse():

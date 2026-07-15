@@ -343,7 +343,7 @@ def construire(
             }
             for p in points_equity
         ],
-        hauteur=120,
+        hauteur=160,  # assez d'air sous les montants min/max (cohérent avec le 1ᵉʳ graphe)
     )
 
     # Répartitions pour les camemberts d'allocation

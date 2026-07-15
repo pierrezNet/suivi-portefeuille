@@ -245,7 +245,7 @@ def coordonnees_svg(
     for i, p in enumerate(points):
         x = _x(i)
         xy_total.append((x, _y(p["portefeuille_total"])))
-        xy_base.append((x, _y(p["portefeuille_total"] - _pv(p))))
+        xy_base.append((x, _y(_base(p))))  # honore la « base » explicite (ex. PV latente)
         texte = p.get("label")
         if not texte:
             m = p.get("mois") or ""

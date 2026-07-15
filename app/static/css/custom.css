@@ -1427,21 +1427,29 @@ textarea:focus-visible {
   border-top: 2px dashed #888;
   border-radius: 0;
 }
+.equity-legende i.dash-vert {
+  border-top-color: #18753c;
+}
 .equity-pv {
   margin-top: 0.6rem;
 }
+/* Vrai titre de chaque graphe (h3) : distinct mais discret, avec la
+   description en texte inline gris à sa suite. */
+.equity-titre {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0.4rem 0 0.2rem;
+}
 .equity-pv-titre {
-  display: block;
   font-size: 0.78rem;
-  margin-bottom: 0.1rem;
+  font-weight: 400;
 }
 .equity-svg-pv {
-  max-height: 160px;
+  max-height: 190px;
 }
 .equity-sous-titre {
-  display: block;
   font-size: 0.8rem;
-  margin-bottom: 0.2rem;
+  font-weight: 400;
 }
 .equity-hit {
   cursor: pointer;

@@ -109,7 +109,8 @@
       {% endif %}
     </span>
   </header>
-  <span class="muted equity-sous-titre">Valeur du portefeuille — total, capital investi et PV latentes</span>
+  <h3 class="equity-titre">Valeur du portefeuille
+    <span class="muted equity-sous-titre">— total, capital investi et PV latentes</span></h3>
   {% set couleur = '#18753c' if equity_coords.hausse else '#ce0500' %}
   {% set couleur_pv = '#18753c' if equity_coords.bande_positive else '#ce0500' %}
   <svg viewBox="0 0 {{ equity_coords.largeur }} {{ equity_coords.hauteur }}"
@@ -165,7 +166,8 @@
   </div>
   {% if equity_pv_coords and equity_pv_coords.chemin and equity_pv_coords.points_xy|length >= 2 %}
   <div class="equity-pv">
-    <span class="muted equity-pv-titre">Plus-values — latentes + réalisées (prises) = totales · échelle propre ({{ equity_pv_coords.min|euros }} → {{ equity_pv_coords.max|euros }})</span>
+    <h3 class="equity-titre">Plus-values (latentes + réalisées)
+      <span class="muted equity-pv-titre">— la ligne latente creuse à chaque vente ; l'écart avec le total = PV réalisées · échelle propre ({{ equity_pv_coords.min|euros }} → {{ equity_pv_coords.max|euros }})</span></h3>
     <svg viewBox="0 0 {{ equity_pv_coords.largeur }} {{ equity_pv_coords.hauteur }}"
          xmlns="http://www.w3.org/2000/svg" class="equity-svg equity-svg-pv" role="img"
          aria-label="Plus-values : latentes, réalisées et totales, à leur propre échelle">
@@ -180,9 +182,10 @@
             stroke="#eee" stroke-width="1"/>
       {# Bande = PV réalisées (entre latentes et totales) #}
       <path d="{{ equity_pv_coords.bande }}" fill="url(#realise-fill)" stroke="none"/>
-      {# Courbe PV latentes (base, pointillé) #}
-      <path fill="none" stroke="#888" stroke-width="1.5" stroke-dasharray="4 3"
-            stroke-linejoin="round" d="{{ equity_pv_coords.chemin_base }}"/>
+      {# Courbe PV latentes (base) — vert pointillé, comme la PV latente du 1ᵉʳ
+         graphe : son creux à chaque vente révèle la PV réalisée (écart au total) #}
+      <path fill="none" stroke="#18753c" stroke-width="1.8" stroke-dasharray="5 3"
+            stroke-linejoin="round" stroke-linecap="round" d="{{ equity_pv_coords.chemin_base }}"/>
       {# Courbe PV totales (haut) #}
       <path fill="none" stroke="#6e2782" stroke-width="2"
             stroke-linejoin="round" stroke-linecap="round" d="{{ equity_pv_coords.chemin }}"/>
@@ -209,7 +212,7 @@
     </svg>
     <div class="equity-legende muted">
       <span><i style="background:#6e2782"></i> PV totales</span>
-      <span><i class="dash"></i> PV latentes</span>
+      <span><i class="dash dash-vert"></i> PV latentes</span>
       <span><i style="background:#b34700;opacity:.55"></i> PV réalisées
         <strong style="color:#b34700">{{ '+' if equity_pv_coords.derniere_bande >= 0 else '' }}{{ equity_pv_coords.derniere_bande|euros }}</strong></span>
     </div>
