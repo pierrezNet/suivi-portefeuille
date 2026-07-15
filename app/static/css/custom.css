@@ -1427,6 +1427,17 @@ textarea:focus-visible {
   border-top: 2px dashed #888;
   border-radius: 0;
 }
+.equity-pv {
+  margin-top: 0.6rem;
+}
+.equity-pv-titre {
+  display: block;
+  font-size: 0.78rem;
+  margin-bottom: 0.1rem;
+}
+.equity-svg-pv {
+  max-height: 130px;
+}
 
 /* Footer */
 .footer {

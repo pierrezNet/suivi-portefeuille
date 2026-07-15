@@ -162,8 +162,38 @@
         <strong style="color:{{ '#18753c' if equity_perf.realise >= 0 else '#ce0500' }}">{{ '+' if equity_perf.realise >= 0 else '' }}{{ equity_perf.realise|euros }}</strong>{% if equity_perf.dividendes and equity_perf.dividendes != 0 %} · dividendes {{ equity_perf.dividendes|euros }}{% endif %}</span>
     {% endif %}
   </div>
+  {% if equity_pv_coords and equity_pv_coords.polyline and equity_pv_coords.points_xy|length >= 2 %}
+  <div class="equity-pv">
+    <span class="muted equity-pv-titre">Plus-values latentes — échelle zoomée ({{ equity_pv_coords.min|euros }} → {{ equity_pv_coords.max|euros }})</span>
+    <svg viewBox="0 0 {{ equity_pv_coords.largeur }} {{ equity_pv_coords.hauteur }}"
+         xmlns="http://www.w3.org/2000/svg" class="equity-svg equity-svg-pv" role="img"
+         aria-label="Plus-values latentes, échelle zoomée">
+      <line x1="{{ equity_pv_coords.marge }}" y1="{{ equity_pv_coords.hauteur - equity_pv_coords.marge }}"
+            x2="{{ equity_pv_coords.largeur - equity_pv_coords.marge }}" y2="{{ equity_pv_coords.hauteur - equity_pv_coords.marge }}"
+            stroke="#eee" stroke-width="1"/>
+      <polyline fill="none" stroke="#6e2782" stroke-width="2"
+                stroke-linejoin="round" stroke-linecap="round" points="{{ equity_pv_coords.polyline }}"/>
+      {% for pt in equity_pv_coords.points_xy %}
+        <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="3" fill="#fff" stroke="#6e2782" stroke-width="1.5"/>
+      {% endfor %}
+      <text x="{{ equity_pv_coords.largeur - 4 }}" y="{{ equity_pv_coords.marge + 4 }}"
+            text-anchor="end" font-size="10" fill="#666">{{ equity_pv_coords.max|euros }}</text>
+      <text x="{{ equity_pv_coords.largeur - 4 }}" y="{{ equity_pv_coords.hauteur - equity_pv_coords.marge - 4 }}"
+            text-anchor="end" font-size="10" fill="#666">{{ equity_pv_coords.min|euros }}</text>
+      {% set pas_pv = (equity_pv_coords.labels_x|length / 6)|round(0, 'ceil')|int %}
+      {% if pas_pv < 1 %}{% set pas_pv = 1 %}{% endif %}
+      {% for lbl in equity_pv_coords.labels_x %}
+        {% if loop.index0 % pas_pv == 0 or loop.last %}
+          <text x="{{ lbl.x }}" y="{{ equity_pv_coords.hauteur - 6 }}"
+                text-anchor="middle" font-size="10" fill="#666">{{ lbl.texte }}</text>
+        {% endif %}
+      {% endfor %}
+    </svg>
+  </div>
+  {% endif %}
   <p class="muted bloc-equity-foot">
     Mis à jour à chaque import xlsx. Un point par relevé (au plus un par jour).
+    La courbe basse « PV latentes » a sa propre échelle (zoom).
   </p>
 </section>
 {% endif %}

@@ -243,3 +243,6 @@ def test_construire_equity_bande_latente_et_realise(tmp_path):
     # bande = PV latente du dernier snapshot (100), pas une base « versements »
     assert data["equity_coords"]["derniere_bande"] == Decimal("100")
     assert "realise" in data["equity_perf"]
+    # panneau PV dédié : échelle propre = plage des PV latentes (50 → 100)
+    pv = data["equity_pv_coords"]
+    assert pv["min"] == Decimal("50") and pv["max"] == Decimal("100")

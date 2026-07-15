@@ -314,6 +314,21 @@ def construire(
         "realise": stats_annee.plus_values_realisees,
         "dividendes": stats_annee.dividendes_recus_eur,
     }
+    # Petit panneau dédié « PV latentes », avec sa PROPRE échelle Y (zoomée sur
+    # la plage des PV) : sur l'échelle du total, la PV (~100 €) est écrasée et
+    # paraît stagner. Ici on rejoue coordonnees_svg avec la PV comme valeur.
+    coords_pv = snapshots.coordonnees_svg(
+        [
+            {
+                "portefeuille_total": p["pv_latente_total"],
+                "base": p["pv_latente_total"],
+                "date": p.get("date"),
+                "label": p.get("label"),
+            }
+            for p in points_equity
+        ],
+        hauteur=110,
+    )
 
     # Répartitions pour les camemberts d'allocation
     repartitions = {}
@@ -348,6 +363,7 @@ def construire(
         "equity_points": points_equity,
         "equity_coords": coords_equity,
         "equity_perf": equity_perf,
+        "equity_pv_coords": coords_pv,
         "repartitions": repartitions,
         "coords_camemberts": coords_camemberts,
     }
