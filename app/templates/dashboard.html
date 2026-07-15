@@ -109,6 +109,7 @@
       {% endif %}
     </span>
   </header>
+  <span class="muted equity-sous-titre">Valeur du portefeuille — total, capital investi et PV latentes</span>
   {% set couleur = '#18753c' if equity_coords.hausse else '#ce0500' %}
   {% set couleur_pv = '#18753c' if equity_coords.bande_positive else '#ce0500' %}
   <svg viewBox="0 0 {{ equity_coords.largeur }} {{ equity_coords.hauteur }}"
@@ -133,9 +134,13 @@
     <path fill="none" stroke="{{ couleur }}" stroke-width="2.5"
           stroke-linejoin="round" stroke-linecap="round"
           d="{{ equity_coords.chemin }}"/>
-    {# Marqueurs sur le total #}
+    {# Marqueurs + zones interactives (tooltip accessible : survol / focus clavier / tactile) #}
     {% for pt in equity_coords.points_xy %}
+      {% set p = equity_points[loop.index0] %}
+      {% set info = p.label ~ ' — capital investi ' ~ (p.capital|euros) ~ ' · total ' ~ (p.portefeuille_total|euros) ~ ' · PV latente ' ~ (p.pv_latente_total|euros) %}
       <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="3.5" fill="#fff" stroke="{{ couleur }}" stroke-width="2"/>
+      <circle class="equity-hit" cx="{{ pt.x }}" cy="{{ pt.y }}" r="11" fill="transparent"
+              tabindex="0" role="img" aria-label="{{ info }}" data-tip="{{ info }}"><title>{{ info }}</title></circle>
     {% endfor %}
     {# Min/max labels Y #}
     <text x="{{ equity_coords.largeur - 4 }}" y="{{ equity_coords.marge + 4 }}"
@@ -157,24 +162,37 @@
     <span><i class="dash"></i> Capital investi</span>
     <span><i style="background:{{ couleur_pv }};opacity:.55"></i> PV latentes
       <strong style="color:{{ couleur_pv }}">{{ '+' if equity_coords.derniere_bande >= 0 else '' }}{{ equity_coords.derniere_bande|euros }}</strong></span>
-    {% if equity_perf and (equity_perf.realise or equity_perf.dividendes) %}
-      <span>PV réalisées {{ annee_courante }}
-        <strong style="color:{{ '#18753c' if equity_perf.realise >= 0 else '#ce0500' }}">{{ '+' if equity_perf.realise >= 0 else '' }}{{ equity_perf.realise|euros }}</strong>{% if equity_perf.dividendes and equity_perf.dividendes != 0 %} · dividendes {{ equity_perf.dividendes|euros }}{% endif %}</span>
-    {% endif %}
   </div>
-  {% if equity_pv_coords and equity_pv_coords.polyline and equity_pv_coords.points_xy|length >= 2 %}
+  {% if equity_pv_coords and equity_pv_coords.chemin and equity_pv_coords.points_xy|length >= 2 %}
   <div class="equity-pv">
-    <span class="muted equity-pv-titre">Plus-values latentes — échelle zoomée ({{ equity_pv_coords.min|euros }} → {{ equity_pv_coords.max|euros }})</span>
+    <span class="muted equity-pv-titre">Plus-values — latentes + réalisées (prises) = totales · échelle propre ({{ equity_pv_coords.min|euros }} → {{ equity_pv_coords.max|euros }})</span>
     <svg viewBox="0 0 {{ equity_pv_coords.largeur }} {{ equity_pv_coords.hauteur }}"
          xmlns="http://www.w3.org/2000/svg" class="equity-svg equity-svg-pv" role="img"
-         aria-label="Plus-values latentes, échelle zoomée">
+         aria-label="Plus-values : latentes, réalisées et totales, à leur propre échelle">
+      <defs>
+        <linearGradient id="realise-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#b34700" stop-opacity="0.28"/>
+          <stop offset="100%" stop-color="#b34700" stop-opacity="0.06"/>
+        </linearGradient>
+      </defs>
       <line x1="{{ equity_pv_coords.marge }}" y1="{{ equity_pv_coords.hauteur - equity_pv_coords.marge }}"
             x2="{{ equity_pv_coords.largeur - equity_pv_coords.marge }}" y2="{{ equity_pv_coords.hauteur - equity_pv_coords.marge }}"
             stroke="#eee" stroke-width="1"/>
+      {# Bande = PV réalisées (entre latentes et totales) #}
+      <path d="{{ equity_pv_coords.bande }}" fill="url(#realise-fill)" stroke="none"/>
+      {# Courbe PV latentes (base, pointillé) #}
+      <path fill="none" stroke="#888" stroke-width="1.5" stroke-dasharray="4 3"
+            stroke-linejoin="round" d="{{ equity_pv_coords.chemin_base }}"/>
+      {# Courbe PV totales (haut) #}
       <path fill="none" stroke="#6e2782" stroke-width="2"
             stroke-linejoin="round" stroke-linecap="round" d="{{ equity_pv_coords.chemin }}"/>
+      {# Marqueurs + tooltip accessible #}
       {% for pt in equity_pv_coords.points_xy %}
+        {% set p = equity_points[loop.index0] %}
+        {% set info = p.label ~ ' — PV totales ' ~ (p.gains_totaux|euros) ~ ' = latentes ' ~ (p.pv_latente_total|euros) ~ ' + réalisées ' ~ (p.realise_cumul|euros) %}
         <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="3" fill="#fff" stroke="#6e2782" stroke-width="1.5"/>
+        <circle class="equity-hit" cx="{{ pt.x }}" cy="{{ pt.y }}" r="10" fill="transparent"
+                tabindex="0" role="img" aria-label="{{ info }}" data-tip="{{ info }}"><title>{{ info }}</title></circle>
       {% endfor %}
       <text x="{{ equity_pv_coords.largeur - 4 }}" y="{{ equity_pv_coords.marge + 4 }}"
             text-anchor="end" font-size="10" fill="#666">{{ equity_pv_coords.max|euros }}</text>
@@ -189,12 +207,44 @@
         {% endif %}
       {% endfor %}
     </svg>
+    <div class="equity-legende muted">
+      <span><i style="background:#6e2782"></i> PV totales</span>
+      <span><i class="dash"></i> PV latentes</span>
+      <span><i style="background:#b34700;opacity:.55"></i> PV réalisées
+        <strong style="color:#b34700">{{ '+' if equity_pv_coords.derniere_bande >= 0 else '' }}{{ equity_pv_coords.derniere_bande|euros }}</strong></span>
+    </div>
   </div>
   {% endif %}
   <p class="muted bloc-equity-foot">
-    Mis à jour à chaque import xlsx. Un point par relevé (au plus un par jour).
-    La courbe basse « PV latentes » a sa propre échelle (zoom).
+    Mis à jour à chaque import xlsx (un point par relevé). Survole ou tabule un
+    point pour le détail. 2ᵉ graphe à échelle propre : une vente convertit de la
+    PV latente en réalisée, la PV totale ne baisse donc pas.
   </p>
+  <script>
+    (function () {
+      var tip = document.createElement('div');
+      tip.className = 'equity-tip';
+      tip.setAttribute('role', 'status');
+      tip.hidden = true;
+      document.body.appendChild(tip);
+      function afficher(el) {
+        tip.textContent = el.getAttribute('data-tip');
+        tip.hidden = false;
+        var r = el.getBoundingClientRect();
+        tip.style.left = (window.scrollX + r.left + r.width / 2) + 'px';
+        tip.style.top = (window.scrollY + r.top) + 'px';
+      }
+      function cacher() { tip.hidden = true; }
+      document.querySelectorAll('.equity-hit').forEach(function (el) {
+        el.addEventListener('mouseenter', function () { afficher(el); });
+        el.addEventListener('mouseleave', cacher);
+        el.addEventListener('focus', function () { afficher(el); });
+        el.addEventListener('blur', cacher);
+        el.addEventListener('touchstart', function (e) { e.stopPropagation(); afficher(el); }, { passive: true });
+      });
+      document.addEventListener('touchstart', cacher, { passive: true });
+    })();
+  </script>
 </section>
 {% endif %}
 {% if (not total_valo_titres or total_valo_titres <= 0) and (not equity_points or equity_points|length < 2) %}

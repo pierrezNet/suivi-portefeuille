@@ -224,13 +224,17 @@ def test_dashboard_affiche_ordres_et_predictions(tmp_path):
     assert "Prédictions en cours" in html and "NVDA" in html
 
 
-def test_construire_equity_bande_latente_et_realise(tmp_path):
-    """Bande = PV latente du snapshot (base auto = total − latente) ; les PV
-    réalisées de l'année sont fournies à part dans equity_perf."""
+def test_construire_equity_gains_latent_realise(tmp_path):
+    """Par relevé : capital, PV réalisées cumulées, gains totaux. 2e panneau =
+    latentes (base) + réalisées (bande) = totales (haut)."""
     d = Depot(tmp_path)
     d.enregistrer("comptes", [{"id": "pea", "nom": "PEA", "type": "PEA"}])
     d.enregistrer("titres", [])
-    d.enregistrer("mouvements", [])
+    d.enregistrer("mouvements", [
+        {"id": "v1", "type": "vente", "compte_id": "pea", "titre_id": "x",
+         "date": "2026-07-01", "quantite": "1", "prix_unitaire_vente": "100",
+         "calcul_fifo": {"plus_value_realisee": "30"}},
+    ])
     d.enregistrer("snapshots", [
         {"date": "2026-06-15", "portefeuille_total": "1050", "cash_total": "1000",
          "valo_titres_total": "50", "pv_latente_total": "50"},
@@ -240,9 +244,32 @@ def test_construire_equity_bande_latente_et_realise(tmp_path):
     for nom in ("watchlist", "evenements", "virements_programmes"):
         d.enregistrer(nom, [])
     data = construire(d, rattraper_virements=False, aujourd_hui=date(2026, 7, 20))
-    # bande = PV latente du dernier snapshot (100), pas une base « versements »
-    assert data["equity_coords"]["derniere_bande"] == Decimal("100")
-    assert "realise" in data["equity_perf"]
-    # panneau PV dédié : échelle propre = plage des PV latentes (50 → 100)
+    pts = data["equity_points"]
+    assert pts[0]["realise_cumul"] == Decimal("0.00")   # 15/06 : avant la vente
+    assert pts[1]["realise_cumul"] == Decimal("30")     # 15/07 : après
+    assert pts[0]["capital"] == Decimal("1000")         # 1050 − 50
+    assert pts[1]["gains_totaux"] == Decimal("130")     # latent 100 + réalisé 30
     pv = data["equity_pv_coords"]
-    assert pv["min"] == Decimal("50") and pv["max"] == Decimal("100")
+    assert pv["derniere_bande"] == Decimal("30")        # bande = réalisé (dernier)
+    assert pv["min"] == Decimal("50") and pv["max"] == Decimal("130")
+
+
+def test_dashboard_courbe_tooltips_accessibles(tmp_path):
+    from app import create_app
+
+    d = Depot(tmp_path)
+    d.enregistrer("comptes", [{"id": "pea", "nom": "PEA", "type": "PEA"}])
+    d.enregistrer("titres", [])
+    d.enregistrer("mouvements", [])
+    d.enregistrer("snapshots", [
+        {"date": "2026-06-15", "portefeuille_total": "1050", "pv_latente_total": "50"},
+        {"date": "2026-07-15", "portefeuille_total": "1400", "pv_latente_total": "100"},
+    ])
+    for nom in ("watchlist", "evenements", "virements_programmes"):
+        d.enregistrer(nom, [])
+    app = create_app()
+    app.config.update(DEPOT=d, TESTING=True, SECRET_KEY="t")
+    html = app.test_client().get("/").get_data(as_text=True)
+    assert "equity-hit" in html and "data-tip=" in html        # zones interactives
+    assert 'role="img"' in html and "capital investi" in html  # aria-label des points
+    assert "PV totales" in html                                 # légende 2e graphe

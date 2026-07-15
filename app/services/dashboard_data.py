@@ -309,25 +309,41 @@ def construire(
     # affichées séparément en légende (non traçables par date : les snapshots
     # ne stockent que la PV latente).
     points_equity = snapshots.serie_points(depot)
+    # Par relevé : capital investi (total − PV latente), PV réalisées CUMULÉES
+    # (ventes ≤ date) et gains totaux (latente + réalisé). Une vente fait BAISSER
+    # la PV latente mais monter le réalisé → leur somme (gains totaux) ne baisse
+    # pas quand on prend un bénéfice.
+    for pt in points_equity:
+        jusqua = pt.get("date") or ""
+        realise = Decimal("0.00")
+        for m in mouvements:
+            if m.get("type") != "vente" or (m.get("date") or "") > jusqua:
+                continue
+            realise += _decimal_safe(
+                (m.get("calcul_fifo") or {}).get("plus_value_realisee")
+            ) or Decimal("0")
+        pt["capital"] = pt["portefeuille_total"] - pt["pv_latente_total"]
+        pt["realise_cumul"] = realise
+        pt["gains_totaux"] = pt["pv_latente_total"] + realise
     coords_equity = snapshots.coordonnees_svg(points_equity)
     equity_perf = {
         "realise": stats_annee.plus_values_realisees,
         "dividendes": stats_annee.dividendes_recus_eur,
     }
-    # Petit panneau dédié « PV latentes », avec sa PROPRE échelle Y (zoomée sur
-    # la plage des PV) : sur l'échelle du total, la PV (~100 €) est écrasée et
-    # paraît stagner. Ici on rejoue coordonnees_svg avec la PV comme valeur.
+    # 2e panneau « Plus-values », échelle propre (zoomée) : PV latentes (base) +
+    # PV réalisées (bande) = PV totales (haut). Sur l'échelle du total (~1766 €)
+    # la PV (~100-226 €) est écrasée et semble stagner.
     coords_pv = snapshots.coordonnees_svg(
         [
             {
-                "portefeuille_total": p["pv_latente_total"],
+                "portefeuille_total": p["gains_totaux"],
                 "base": p["pv_latente_total"],
                 "date": p.get("date"),
                 "label": p.get("label"),
             }
             for p in points_equity
         ],
-        hauteur=110,
+        hauteur=120,
     )
 
     # Répartitions pour les camemberts d'allocation
