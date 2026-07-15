@@ -181,3 +181,16 @@ def test_coordonnees_svg_pv_negative():
     c = svc.coordonnees_svg(points)
     assert c["pv_positive"] is False
     assert c["dernier_pv"] == Decimal("-80")
+
+
+def test_coordonnees_svg_x_proportionnel_a_la_date():
+    # Gros écart temporel au milieu → X reflète le TEMPS, pas l'index régulier.
+    points = [
+        {"date": "2026-06-01", "portefeuille_total": Decimal("1000")},
+        {"date": "2026-06-03", "portefeuille_total": Decimal("1010")},  # +2 j
+        {"date": "2026-07-03", "portefeuille_total": Decimal("1500")},  # +30 j
+    ]
+    c = svc.coordonnees_svg(points, largeur=620, marge=10)
+    xs = [int(pt.split(",")[0]) for pt in c["polyline"].split()]
+    # étendue 32 j, aire_l 600 : le 2e point (jour 2) reste tout à gauche
+    assert xs == [10, 47, 610]

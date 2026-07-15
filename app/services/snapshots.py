@@ -167,12 +167,32 @@ def coordonnees_svg(
     def _y(valeur: Decimal) -> int:
         return base_y - int(float((valeur - lo) / span) * aire_h)
 
+    n = len(points)
+    # Position X proportionnelle à la DATE réelle si toutes les dates sont
+    # exploitables (sinon espacement régulier par index) : un grand écart de
+    # temps n'est plus dessiné comme un pas régulier quasi vertical (ex. le saut
+    # 24/06 → 03/07), et les jours rapprochés ne sont plus étirés.
+    ordinaux: list[int] = []
+    for p in points:
+        try:
+            ordinaux.append(_date.fromisoformat(p.get("date") or "").toordinal())
+        except (TypeError, ValueError):
+            ordinaux = []
+            break
+    if len(ordinaux) == n and n > 1 and ordinaux[-1] != ordinaux[0]:
+        etendue = ordinaux[-1] - ordinaux[0]
+
+        def _x(i: int) -> int:
+            return marge + int((ordinaux[i] - ordinaux[0]) * aire_l / etendue)
+    else:
+        def _x(i: int) -> int:
+            return marge if n == 1 else marge + int(i * aire_l / (n - 1))
+
     xy_total: list[tuple[int, int]] = []
     xy_base: list[tuple[int, int]] = []
     labels_x: list[dict] = []
-    n = len(points)
     for i, p in enumerate(points):
-        x = marge if n == 1 else marge + int(i * aire_l / (n - 1))
+        x = _x(i)
         xy_total.append((x, _y(p["portefeuille_total"])))
         xy_base.append((x, _y(p["portefeuille_total"] - _pv(p))))
         texte = p.get("label")
