@@ -126,13 +126,13 @@
           stroke="#eee" stroke-width="1"/>
     {# Bande = plus-value latente (entre « capital investi » et « total ») #}
     <path d="{{ equity_coords.bande }}" fill="url(#pv-fill)" stroke="none"/>
-    {# Courbe « capital investi » (cash + coût) — pointillé discret #}
-    <polyline fill="none" stroke="#888" stroke-width="1.5" stroke-dasharray="4 3"
-              stroke-linejoin="round" points="{{ equity_coords.polyline_base }}"/>
-    {# Courbe « total » #}
-    <polyline fill="none" stroke="{{ couleur }}" stroke-width="2.5"
-              stroke-linejoin="round" stroke-linecap="round"
-              points="{{ equity_coords.polyline }}"/>
+    {# Courbe « capital investi » (cash + coût) — pointillé discret, lissée #}
+    <path fill="none" stroke="#888" stroke-width="1.5" stroke-dasharray="4 3"
+          stroke-linejoin="round" d="{{ equity_coords.chemin_base }}"/>
+    {# Courbe « total » — lissée #}
+    <path fill="none" stroke="{{ couleur }}" stroke-width="2.5"
+          stroke-linejoin="round" stroke-linecap="round"
+          d="{{ equity_coords.chemin }}"/>
     {# Marqueurs sur le total #}
     {% for pt in equity_coords.points_xy %}
       <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="3.5" fill="#fff" stroke="{{ couleur }}" stroke-width="2"/>
@@ -171,8 +171,8 @@
       <line x1="{{ equity_pv_coords.marge }}" y1="{{ equity_pv_coords.hauteur - equity_pv_coords.marge }}"
             x2="{{ equity_pv_coords.largeur - equity_pv_coords.marge }}" y2="{{ equity_pv_coords.hauteur - equity_pv_coords.marge }}"
             stroke="#eee" stroke-width="1"/>
-      <polyline fill="none" stroke="#6e2782" stroke-width="2"
-                stroke-linejoin="round" stroke-linecap="round" points="{{ equity_pv_coords.polyline }}"/>
+      <path fill="none" stroke="#6e2782" stroke-width="2"
+            stroke-linejoin="round" stroke-linecap="round" d="{{ equity_pv_coords.chemin }}"/>
       {% for pt in equity_pv_coords.points_xy %}
         <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="3" fill="#fff" stroke="#6e2782" stroke-width="1.5"/>
       {% endfor %}

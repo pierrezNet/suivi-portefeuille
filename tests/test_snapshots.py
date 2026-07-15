@@ -195,6 +195,20 @@ def test_coordonnees_svg_base_surchargee():
     assert len(c["polyline_base"].split()) == 2
 
 
+def test_coordonnees_svg_chemin_lisse():
+    points = [
+        {"label": "a", "portefeuille_total": Decimal("1000")},
+        {"label": "b", "portefeuille_total": Decimal("1020")},
+        {"label": "c", "portefeuille_total": Decimal("1500")},
+    ]
+    c = svc.coordonnees_svg(points)
+    # chemin lissé = béziers cubiques (spline) passant par les points
+    assert c["chemin"].startswith("M ") and "C" in c["chemin"]
+    assert c["chemin_base"].startswith("M ")
+    # la polyligne droite reste fournie (mobile / rétrocompat)
+    assert len(c["polyline"].split()) == 3
+
+
 def test_coordonnees_svg_x_proportionnel_a_la_date():
     # Gros écart temporel au milieu → X reflète le TEMPS, pas l'index régulier.
     points = [

@@ -110,6 +110,50 @@ def serie_points(depot: Depot, *, max_points: int = 180) -> list[dict]:
     return points
 
 
+def _chemin_lisse(xy: list[tuple[int, int]]) -> str:
+    """Chemin SVG lissé passant par TOUS les points, via une spline cubique
+    **monotone** (Fritsch-Carlson). Adoucit les ruptures de pente sans jamais
+    dépasser les valeurs des points : à un minimum/maximum local la tangente
+    devient horizontale → pas de faux creux ni de faux sommet inventés.
+    """
+    n = len(xy)
+    if n == 0:
+        return ""
+    if n == 1:
+        return f"M {xy[0][0]},{xy[0][1]}"
+    xs = [float(p[0]) for p in xy]
+    ys = [float(p[1]) for p in xy]
+    dx = [xs[i + 1] - xs[i] for i in range(n - 1)]
+    delta = [(ys[i + 1] - ys[i]) / dx[i] if dx[i] else 0.0 for i in range(n - 1)]
+    m = [0.0] * n
+    m[0], m[-1] = delta[0], delta[-1]
+    for i in range(1, n - 1):
+        m[i] = 0.0 if delta[i - 1] * delta[i] <= 0 else (delta[i - 1] + delta[i]) / 2
+    # Bornage de monotonie : empêche tout dépassement entre deux points.
+    for i in range(n - 1):
+        if delta[i] == 0:
+            m[i] = m[i + 1] = 0.0
+        else:
+            a, b = m[i] / delta[i], m[i + 1] / delta[i]
+            s = a * a + b * b
+            if s > 9:
+                t = 3.0 / (s ** 0.5)
+                m[i], m[i + 1] = t * a * delta[i], t * b * delta[i]
+    d = [f"M {xy[0][0]},{xy[0][1]}"]
+    for i in range(n - 1):
+        c1x, c1y = xs[i] + dx[i] / 3, ys[i] + m[i] * dx[i] / 3
+        c2x, c2y = xs[i + 1] - dx[i] / 3, ys[i + 1] - m[i + 1] * dx[i] / 3
+        d.append(f"C {c1x:.1f},{c1y:.1f} {c2x:.1f},{c2y:.1f} {xy[i + 1][0]},{xy[i + 1][1]}")
+    return " ".join(d)
+
+
+def _segments_chemin(chemin: str) -> str:
+    """Retire le « M x,y » initial d'un chemin lissé, garde les segments de
+    courbe (pour enchaîner un tracé de retour dans une aire fermée)."""
+    parts = chemin.split(" ")
+    return " ".join(parts[2:]) if len(parts) > 2 else ""
+
+
 def coordonnees_svg(
     points: list[dict],
     *,
@@ -129,6 +173,8 @@ def coordonnees_svg(
         return {
             "polyline": "",
             "polyline_base": "",
+            "chemin": "",
+            "chemin_base": "",
             "bande": "",
             "points_xy": [],
             "hausse": True,
@@ -206,17 +252,23 @@ def coordonnees_svg(
             texte = (m[5:] + "/" + m[2:4]) if len(m) >= 7 else ""
         labels_x.append({"x": x, "texte": texte})
 
-    # Bande = plus-value latente : entre la courbe « capital investi » (base) et
-    # le total. Base à l'aller, total au retour, tracé fermé.
-    d_parts = [f"M {xy_base[0][0]},{xy_base[0][1]}"]
-    d_parts += [f"L {x},{y}" for x, y in xy_base[1:]]
-    d_parts += [f"L {x},{y}" for x, y in reversed(xy_total)]
-    d_parts.append("Z")
-    bande = " ".join(d_parts)
+    # Courbes lissées (spline) : plus d'angle net aux ruptures de pente.
+    chemin_total = _chemin_lisse(xy_total)
+    chemin_base = _chemin_lisse(xy_base)
+    # Bande = aire entre « capital investi » (base) et total, à bords lissés :
+    # base à l'aller (lissée), total lissé au retour, tracé fermé.
+    bande = (
+        chemin_base
+        + f" L {xy_total[-1][0]},{xy_total[-1][1]} "
+        + _segments_chemin(_chemin_lisse(list(reversed(xy_total))))
+        + " Z"
+    )
 
     return {
         "polyline": " ".join(f"{x},{y}" for x, y in xy_total),
         "polyline_base": " ".join(f"{x},{y}" for x, y in xy_base),
+        "chemin": chemin_total,
+        "chemin_base": chemin_base,
         "bande": bande,
         "points_xy": [{"x": x, "y": y} for x, y in xy_total],
         "hausse": totaux[-1] >= totaux[0],
