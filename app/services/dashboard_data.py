@@ -303,9 +303,17 @@ def construire(
     # Watchlist priorité haute (max 6)
     watchlist_haute = lister_watchlist(depot, priorite="haute")[:6]
 
-    # Série mensuelle pour la courbe d'équity (24 derniers mois)
+    # Courbe d'équity : base auto-cohérente = « capital investi » (total −
+    # plus-value latente, tirée du snapshot lui-même) → bande = PV latentes,
+    # sans artefact de décalage dépôt/import. Les PV réalisées de l'année sont
+    # affichées séparément en légende (non traçables par date : les snapshots
+    # ne stockent que la PV latente).
     points_equity = snapshots.serie_points(depot)
     coords_equity = snapshots.coordonnees_svg(points_equity)
+    equity_perf = {
+        "realise": stats_annee.plus_values_realisees,
+        "dividendes": stats_annee.dividendes_recus_eur,
+    }
 
     # Répartitions pour les camemberts d'allocation
     repartitions = {}
@@ -339,6 +347,7 @@ def construire(
         "virements_rattrapes": virements_rattrapes,
         "equity_points": points_equity,
         "equity_coords": coords_equity,
+        "equity_perf": equity_perf,
         "repartitions": repartitions,
         "coords_camemberts": coords_camemberts,
     }

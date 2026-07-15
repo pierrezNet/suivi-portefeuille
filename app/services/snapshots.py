@@ -132,8 +132,8 @@ def coordonnees_svg(
             "bande": "",
             "points_xy": [],
             "hausse": True,
-            "pv_positive": True,
-            "dernier_pv": Decimal("0"),
+            "bande_positive": True,
+            "derniere_bande": Decimal("0"),
             "labels_x": [],
             "min": Decimal("0"),
             "max": Decimal("0"),
@@ -145,9 +145,14 @@ def coordonnees_svg(
     def _pv(p):
         return p.get("pv_latente_total") or Decimal("0")
 
+    def _base(p):
+        # Courbe basse : « base » explicite (ex. versements nets) si fournie,
+        # sinon « capital investi » = total − plus-value latente.
+        b = p.get("base")
+        return b if b is not None else p["portefeuille_total"] - _pv(p)
+
     totaux = [p["portefeuille_total"] for p in points]
-    # « Capital investi » = cash + coût des titres = total − plus-value latente.
-    bases = [p["portefeuille_total"] - _pv(p) for p in points]
+    bases = [_base(p) for p in points]
     vmin = min(min(totaux), min(bases))
     vmax = max(max(totaux), max(bases))
     plage = vmax - vmin
@@ -215,8 +220,8 @@ def coordonnees_svg(
         "bande": bande,
         "points_xy": [{"x": x, "y": y} for x, y in xy_total],
         "hausse": totaux[-1] >= totaux[0],
-        "pv_positive": _pv(points[-1]) >= 0,
-        "dernier_pv": _pv(points[-1]),
+        "bande_positive": (totaux[-1] - bases[-1]) >= 0,
+        "derniere_bande": totaux[-1] - bases[-1],
         "labels_x": labels_x,
         "min": vmin,
         "max": vmax,

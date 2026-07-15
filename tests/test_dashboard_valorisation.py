@@ -222,3 +222,24 @@ def test_dashboard_affiche_ordres_et_predictions(tmp_path):
     html = app.test_client().get("/").get_data(as_text=True)
     assert "Ordres limites actifs" in html and "STM" in html
     assert "Prédictions en cours" in html and "NVDA" in html
+
+
+def test_construire_equity_bande_latente_et_realise(tmp_path):
+    """Bande = PV latente du snapshot (base auto = total − latente) ; les PV
+    réalisées de l'année sont fournies à part dans equity_perf."""
+    d = Depot(tmp_path)
+    d.enregistrer("comptes", [{"id": "pea", "nom": "PEA", "type": "PEA"}])
+    d.enregistrer("titres", [])
+    d.enregistrer("mouvements", [])
+    d.enregistrer("snapshots", [
+        {"date": "2026-06-15", "portefeuille_total": "1050", "cash_total": "1000",
+         "valo_titres_total": "50", "pv_latente_total": "50"},
+        {"date": "2026-07-15", "portefeuille_total": "1400", "cash_total": "1300",
+         "valo_titres_total": "100", "pv_latente_total": "100"},
+    ])
+    for nom in ("watchlist", "evenements", "virements_programmes"):
+        d.enregistrer(nom, [])
+    data = construire(d, rattraper_virements=False, aujourd_hui=date(2026, 7, 20))
+    # bande = PV latente du dernier snapshot (100), pas une base « versements »
+    assert data["equity_coords"]["derniere_bande"] == Decimal("100")
+    assert "realise" in data["equity_perf"]

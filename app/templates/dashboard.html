@@ -110,7 +110,7 @@
     </span>
   </header>
   {% set couleur = '#18753c' if equity_coords.hausse else '#ce0500' %}
-  {% set couleur_pv = '#18753c' if equity_coords.pv_positive else '#ce0500' %}
+  {% set couleur_pv = '#18753c' if equity_coords.bande_positive else '#ce0500' %}
   <svg viewBox="0 0 {{ equity_coords.largeur }} {{ equity_coords.hauteur }}"
        xmlns="http://www.w3.org/2000/svg" class="equity-svg" role="img"
        aria-label="Évolution du portefeuille : total, capital investi et plus-values latentes">
@@ -155,8 +155,12 @@
   <div class="equity-legende muted">
     <span><i style="background:{{ couleur }}"></i> Total</span>
     <span><i class="dash"></i> Capital investi</span>
-    <span><i style="background:{{ couleur_pv }};opacity:.55"></i> Plus-values latentes
-      <strong style="color:{{ couleur_pv }}">{{ '+' if equity_coords.dernier_pv >= 0 else '' }}{{ equity_coords.dernier_pv|euros }}</strong></span>
+    <span><i style="background:{{ couleur_pv }};opacity:.55"></i> PV latentes
+      <strong style="color:{{ couleur_pv }}">{{ '+' if equity_coords.derniere_bande >= 0 else '' }}{{ equity_coords.derniere_bande|euros }}</strong></span>
+    {% if equity_perf and (equity_perf.realise or equity_perf.dividendes) %}
+      <span>PV réalisées {{ annee_courante }}
+        <strong style="color:{{ '#18753c' if equity_perf.realise >= 0 else '#ce0500' }}">{{ '+' if equity_perf.realise >= 0 else '' }}{{ equity_perf.realise|euros }}</strong>{% if equity_perf.dividendes and equity_perf.dividendes != 0 %} · dividendes {{ equity_perf.dividendes|euros }}{% endif %}</span>
+    {% endif %}
   </div>
   <p class="muted bloc-equity-foot">
     Mis à jour à chaque import xlsx. Un point par relevé (au plus un par jour).

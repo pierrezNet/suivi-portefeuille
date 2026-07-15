@@ -167,8 +167,8 @@ def test_coordonnees_svg_bande_pv():
     c = svc.coordonnees_svg(points)
     assert len(c["polyline_base"].split()) == 2       # 2e courbe : capital investi
     assert c["bande"].startswith("M ") and c["bande"].rstrip().endswith("Z")
-    assert c["pv_positive"] is True
-    assert c["dernier_pv"] == Decimal("200")
+    assert c["bande_positive"] is True
+    assert c["derniere_bande"] == Decimal("200")
     # l'échelle englobe la base (900 = 1000 − 100) et le total (1500)
     assert c["min"] <= Decimal("900") and c["max"] >= Decimal("1500")
 
@@ -179,8 +179,20 @@ def test_coordonnees_svg_pv_negative():
         {"label": "08/07", "portefeuille_total": Decimal("900"), "pv_latente_total": Decimal("-80")},
     ]
     c = svc.coordonnees_svg(points)
-    assert c["pv_positive"] is False
-    assert c["dernier_pv"] == Decimal("-80")
+    assert c["bande_positive"] is False
+    assert c["derniere_bande"] == Decimal("-80")
+
+
+def test_coordonnees_svg_base_surchargee():
+    # base explicite (ex. versements nets) → bande = total − base (performance)
+    points = [
+        {"date": "2026-06-01", "portefeuille_total": Decimal("1000"), "base": Decimal("900")},
+        {"date": "2026-07-01", "portefeuille_total": Decimal("1500"), "base": Decimal("1200")},
+    ]
+    c = svc.coordonnees_svg(points)
+    assert c["derniere_bande"] == Decimal("300")   # 1500 − 1200
+    assert c["bande_positive"] is True
+    assert len(c["polyline_base"].split()) == 2
 
 
 def test_coordonnees_svg_x_proportionnel_a_la_date():
