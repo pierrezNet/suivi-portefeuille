@@ -159,31 +159,107 @@
     return `<section class="bloc-camemberts">${blocs}</section>`;
   }
 
+  // Labels de l'axe X (un sur ~6) pour un jeu de coordonnées.
+  function axeLabelsX(c) {
+    const labs = c.labels_x || [];
+    const pas = Math.max(1, Math.ceil(labs.length / 6));
+    return labs
+      .map((l, i) =>
+        i % pas === 0 || i === labs.length - 1
+          ? `<text x="${l.x}" y="${c.hauteur - 6}" text-anchor="middle" font-size="10" fill="#666">${escapeHtml(l.texte)}</text>`
+          : ""
+      )
+      .join("");
+  }
+
+  // Marqueurs (petits ronds) + tooltip natif <title> (survol / appui long).
+  function marqueursEquity(coords, pts, couleur, infoFn) {
+    return (coords.points_xy || [])
+      .map((pt, i) => {
+        const info = escapeHtml(infoFn(pts[i] || {}));
+        return `<circle cx="${pt.x}" cy="${pt.y}" r="3" fill="#fff" stroke="${couleur}" stroke-width="1.5"><title>${info}</title></circle>`;
+      })
+      .join("");
+  }
+
   function renderEquity(data) {
     const c = data.equity_coords;
     const pts = data.equity_points || [];
-    if (!c || !c.polyline || pts.length < 2) return "";
-    const labels = (c.labels_x || [])
-      .map((l, i) => {
-        const pas = Math.max(1, Math.ceil(c.labels_x.length / 6));
-        if (i % pas === 0 || i === c.labels_x.length - 1) {
-          return `<text x="${l.x}" y="${c.hauteur - 6}" text-anchor="middle" font-size="10" fill="#666">${escapeHtml(l.texte)}</text>`;
-        }
-        return "";
-      })
-      .join("");
-    return `
-      <section class="bloc">
-        <h2>📈 Évolution (${pts.length} mois)</h2>
-        <div class="muted" style="margin-bottom:0.5rem">de ${fmtEuros(c.premier)} à <strong>${fmtEuros(c.dernier)}</strong></div>
-        <svg viewBox="0 0 ${c.largeur} ${c.hauteur}" xmlns="http://www.w3.org/2000/svg"
-             style="width:100%;height:auto;max-height:220px;display:block">
-          <line x1="${c.marge}" y1="${c.hauteur - c.marge}" x2="${c.largeur - c.marge}" y2="${c.hauteur - c.marge}" stroke="#ddd" stroke-width="1"/>
-          <polyline fill="none" stroke="#000091" stroke-width="2" points="${c.polyline}"/>
-          <text x="${c.largeur - 4}" y="${c.marge + 4}" text-anchor="end" font-size="10" fill="#666">${fmtEuros(c.max)}</text>
-          <text x="${c.largeur - 4}" y="${c.hauteur - c.marge - 4}" text-anchor="end" font-size="10" fill="#666">${fmtEuros(c.min)}</text>
-          ${labels}
+    if (!c || !c.chemin || pts.length < 2) return "";
+    const couleur = c.hausse ? "#18753c" : "#ce0500";
+    const couleurPv = c.bande_positive ? "#18753c" : "#ce0500";
+
+    // --- Graphe 1 : Valeur du portefeuille (total, capital investi, bande PV) ---
+    const marq1 = marqueursEquity(c, pts, couleur, (p) =>
+      `${p.label || ""} — capital investi ${fmtEuros(p.capital)} · total ${fmtEuros(p.portefeuille_total)} · PV latente ${fmtEuros(p.pv_latente_total)}`
+    );
+    const graphe1 = `
+      <h3 class="equity-titre">Valeur du portefeuille <span class="equity-sous-titre muted">— total, capital investi et PV latentes</span></h3>
+      <svg viewBox="0 0 ${c.largeur} ${c.hauteur}" xmlns="http://www.w3.org/2000/svg"
+           style="width:100%;height:auto;max-height:220px;display:block">
+        <defs>
+          <linearGradient id="pv-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${couleurPv}" stop-opacity="0.28"/>
+            <stop offset="100%" stop-color="${couleurPv}" stop-opacity="0.06"/>
+          </linearGradient>
+        </defs>
+        <line x1="${c.marge}" y1="${c.hauteur - c.marge}" x2="${c.largeur - c.marge}" y2="${c.hauteur - c.marge}" stroke="#eee" stroke-width="1"/>
+        <path d="${c.bande}" fill="url(#pv-fill)" stroke="none"/>
+        <path fill="none" stroke="#888" stroke-width="1.5" stroke-dasharray="4 3" stroke-linejoin="round" d="${c.chemin_base}"/>
+        <path fill="none" stroke="${couleur}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" d="${c.chemin}"/>
+        ${marq1}
+        <text x="${c.largeur - 4}" y="${c.marge + 4}" text-anchor="end" font-size="10" fill="#666">${fmtEuros(c.max)}</text>
+        <text x="${c.largeur - 4}" y="${c.hauteur - c.marge - 4}" text-anchor="end" font-size="10" fill="#666">${fmtEuros(c.min)}</text>
+        ${axeLabelsX(c)}
+      </svg>
+      <div class="equity-legende muted">
+        <span><i style="background:${couleur}"></i> Total</span>
+        <span><i class="dash"></i> Capital investi</span>
+        <span><i style="background:${couleurPv};opacity:.55"></i> PV latentes
+          <strong style="color:${couleurPv}">${Number(c.derniere_bande) >= 0 ? "+" : ""}${fmtEuros(c.derniere_bande)}</strong></span>
+      </div>`;
+
+    // --- Graphe 2 : Plus-values (latentes + réalisées = totales), échelle propre ---
+    const pvc = data.equity_pv_coords;
+    let graphe2 = "";
+    if (pvc && pvc.chemin && (pvc.points_xy || []).length >= 2) {
+      const marq2 = marqueursEquity(pvc, pts, "#6e2782", (p) =>
+        `${p.label || ""} — PV totales ${fmtEuros(p.gains_totaux)} = latentes ${fmtEuros(p.pv_latente_total)} + réalisées ${fmtEuros(p.realise_cumul)}`
+      );
+      graphe2 = `
+        <h3 class="equity-titre" style="margin-top:0.8rem">Plus-values (latentes + réalisées)
+          <span class="equity-sous-titre muted">— la ligne latente creuse à chaque vente ; l'écart avec le total = PV réalisées</span></h3>
+        <svg viewBox="0 0 ${pvc.largeur} ${pvc.hauteur}" xmlns="http://www.w3.org/2000/svg"
+             style="width:100%;height:auto;max-height:190px;display:block">
+          <defs>
+            <linearGradient id="realise-fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#b34700" stop-opacity="0.28"/>
+              <stop offset="100%" stop-color="#b34700" stop-opacity="0.06"/>
+            </linearGradient>
+          </defs>
+          <line x1="${pvc.marge}" y1="${pvc.hauteur - pvc.marge}" x2="${pvc.largeur - pvc.marge}" y2="${pvc.hauteur - pvc.marge}" stroke="#eee" stroke-width="1"/>
+          <path d="${pvc.bande}" fill="url(#realise-fill)" stroke="none"/>
+          <path fill="none" stroke="#18753c" stroke-width="1.8" stroke-dasharray="5 3" stroke-linejoin="round" stroke-linecap="round" d="${pvc.chemin_base}"/>
+          <path fill="none" stroke="#6e2782" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" d="${pvc.chemin}"/>
+          ${marq2}
+          <text x="${pvc.largeur - 4}" y="${pvc.marge + 4}" text-anchor="end" font-size="10" fill="#666">${fmtEuros(pvc.max)}</text>
+          <text x="${pvc.largeur - 4}" y="${pvc.hauteur - pvc.marge - 4}" text-anchor="end" font-size="10" fill="#666">${fmtEuros(pvc.min)}</text>
+          ${axeLabelsX(pvc)}
         </svg>
+        <div class="equity-legende muted">
+          <span><i style="background:#6e2782"></i> PV totales</span>
+          <span><i class="dash dash-vert"></i> PV latentes</span>
+          <span><i style="background:#b34700;opacity:.55"></i> PV réalisées
+            <strong style="color:#b34700">${Number(pvc.derniere_bande) >= 0 ? "+" : ""}${fmtEuros(pvc.derniere_bande)}</strong></span>
+        </div>`;
+    }
+
+    return `
+      <section class="bloc bloc-equity">
+        <h2>📈 Évolution du portefeuille</h2>
+        <div class="muted" style="margin-bottom:0.5rem">${pts.length} relevés · de ${fmtEuros(c.premier)} à <strong>${fmtEuros(c.dernier)}</strong></div>
+        ${graphe1}
+        ${graphe2}
       </section>
     `;
   }

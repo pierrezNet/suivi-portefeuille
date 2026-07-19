@@ -236,6 +236,44 @@ footer.bas-page {
   color: var(--gris-muet);
 }
 
+/* --- Courbe d'évolution (2 graphes) --------------------------------------- */
+.equity-titre {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0.4rem 0 0.2rem;
+}
+.equity-sous-titre {
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+.equity-legende {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  font-size: 0.8rem;
+  margin: 0.4rem 0 0;
+}
+.equity-legende span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.equity-legende i {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.equity-legende i.dash {
+  height: 0;
+  width: 14px;
+  border-top: 2px dashed #888;
+  border-radius: 0;
+}
+.equity-legende i.dash-vert {
+  border-top-color: #18753c;
+}
+
 /* --- Cartes positions (mobile-first) -------------------------------------- */
 .position-cards {
   display: flex;
