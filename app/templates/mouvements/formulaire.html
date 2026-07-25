@@ -83,6 +83,10 @@
     {{ champ('Montant (€)', 'montant', type='number', step='0.01', required=True) }}
     {{ champ('Libellé', 'libelle', placeholder='Virement permanent mensuel') }}
 
+  {% elif type_mouvement == 'frais' %}
+    {{ champ('Montant (€)', 'montant', type='number', step='0.01', required=True) }}
+    {{ champ('Libellé', 'libelle', placeholder='Frais sur virement, droits de garde…') }}
+
   {% elif type_mouvement in ('achat', 'vente', 'dividende_recu') %}
     <label class="champ">
       <span>Titre *</span>

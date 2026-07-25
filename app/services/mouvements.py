@@ -320,6 +320,9 @@ _NORMALISATEURS = {
     "retrait_cash": lambda d, x: _normaliser_alim_ou_retrait(
         d, x, "retrait_cash"
     ),
+    # Frais autonome (frais bancaires, droits de garde…) : même forme qu'un
+    # retrait (montant + libellé), mais ventilé comme un coût, pas un retrait.
+    "frais": lambda d, x: _normaliser_alim_ou_retrait(d, x, "frais"),
     "achat": _normaliser_achat,
     "vente": _normaliser_vente,
     "dividende_recu": _normaliser_dividende,
