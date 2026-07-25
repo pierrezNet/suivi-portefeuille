@@ -79,8 +79,8 @@
   </label>
   {% if nb_filtres_actifs %}
   <div class="filtres-actions">
-    <a href="{{ url_for('predictions.liste', reinit=1) }}" class="btn-link">Réinitialiser</a>
-    <span class="filtres-badge" title="Filtres actifs mémorisés">{{ nb_filtres_actifs }} filtre{{ 's' if nb_filtres_actifs > 1 }} actif{{ 's' if nb_filtres_actifs > 1 }}</span>
+    <a class="filtres-badge" href="{{ url_for('predictions.liste', reinit=1) }}"
+       title="Supprimer les filtres">✕ {{ nb_filtres_actifs }} filtre{{ 's' if nb_filtres_actifs > 1 }} actif{{ 's' if nb_filtres_actifs > 1 }}</a>
   </div>
   {% endif %}
 </form>

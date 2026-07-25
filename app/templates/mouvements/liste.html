@@ -55,12 +55,12 @@
            class="{% if filtres.date_fin %}filtre-actif{% endif %}">
   </label>
   <div class="filtres-actions">
-    <button type="submit" class="btn">Filtrer</button>
+    <button type="submit" class="btn" title="Filtrer" aria-label="Filtrer">
+      <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false" style="vertical-align:-2px"><path fill="currentColor" d="M1.5 1.5A.5.5 0 0 1 2 1h12a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.128.334L10 8.692V13.5a.5.5 0 0 1-.342.474l-3 1A.5.5 0 0 1 6 14.5V8.692L1.628 3.834A.5.5 0 0 1 1.5 3.5v-2z"/></svg>
+    </button>
     {% if nb_filtres_actifs %}
-      <a class="btn btn-link" href="{{ url_for('mouvements.liste', reinit=1) }}">Réinitialiser</a>
-      <span class="filtres-badge" title="Filtres actifs mémorisés">{{ nb_filtres_actifs }} filtre{{ 's' if nb_filtres_actifs > 1 }} actif{{ 's' if nb_filtres_actifs > 1 }}</span>
-    {% else %}
-      <a class="btn btn-link" href="{{ url_for('mouvements.liste', reinit=1) }}">Réinitialiser</a>
+      <a class="filtres-badge" href="{{ url_for('mouvements.liste', reinit=1) }}"
+         title="Supprimer les filtres">✕ {{ nb_filtres_actifs }} filtre{{ 's' if nb_filtres_actifs > 1 }} actif{{ 's' if nb_filtres_actifs > 1 }}</a>
     {% endif %}
   </div>
 </form>
@@ -116,8 +116,8 @@
           {% if m.type == 'alimentation_cash' %}+{{ m.montant|euros }}
           {% elif m.type == 'retrait_cash' %}−{{ m.montant|euros }}
           {% elif m.type == 'frais' %}−{{ m.montant|euros }}
-          {% elif m.type == 'achat' %}−{{ ((m.quantite|string|float) * (m.prix_unitaire|string|float) + (m.frais_courtage|string|float))|round(2) }} €
-          {% elif m.type == 'vente' %}+{{ ((m.quantite|string|float) * (m.prix_unitaire_vente|string|float) - (m.frais_courtage|string|float))|round(2) }} €
+          {% elif m.type == 'achat' %}−{{ ((m.quantite|string|float) * (m.prix_unitaire|string|float) + (m.frais_courtage|string|float))|euros }}
+          {% elif m.type == 'vente' %}+{{ ((m.quantite|string|float) * (m.prix_unitaire_vente|string|float) - (m.frais_courtage|string|float))|euros }}
           {% elif m.type == 'dividende_recu' %}+{{ (m.montant_net_eur or m.montant_brut_total)|euros }}
           {% else %}—{% endif %}
         </td>
@@ -137,6 +137,13 @@
       </tr>
     {% endfor %}
   </tbody>
+  <tfoot>
+    <tr class="total-mouvements">
+      <td colspan="7">Total — {{ mouvements|length }} mouvement{{ 's' if mouvements|length > 1 }}</td>
+      <td class="num"><strong>{{ total_impact|euros }}</strong></td>
+      <td colspan="2"></td>
+    </tr>
+  </tfoot>
 </table>
 {% else %}
 <div class="empty-state">
@@ -145,7 +152,7 @@
   <p>
     {% if filtres.compte_id or filtres.titre_id or filtres.type_ or filtres.date_debut or filtres.date_fin %}
       Aucune opération ne correspond à ces filtres.
-      <br><a class="btn-link" href="{{ url_for('mouvements.liste') }}">Réinitialiser les filtres</a>
+      <br><a class="btn-link" href="{{ url_for('mouvements.liste', reinit=1) }}">Réinitialiser les filtres</a>
     {% else %}
       Commence par enregistrer ta première opération.
     {% endif %}

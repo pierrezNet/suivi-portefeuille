@@ -55,6 +55,9 @@ def test_filtre_signale_puis_reapplique_puis_reinit(depot, nom, url, param, val)
     assert "filtres-bar--actifs" in html, f"{nom}: accent de barre absent"
     assert "filtre-actif" in html, f"{nom}: champ non surligné"
     assert "filtre actif" in html, f"{nom}: badge absent"
+    # Le badge est lui-même le bouton de suppression des filtres
+    assert 'class="filtres-badge"' in html and "reinit=1" in html, \
+        f"{nom}: badge non cliquable pour supprimer les filtres"
 
     # 2. Retour « nu » sur la page → redirige vers l'URL filtrée mémorisée
     r = c.get(url)

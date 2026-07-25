@@ -86,6 +86,32 @@ def calculer_solde_cash(mouvements: Iterable[dict], compte_id: str) -> Decimal:
     return calculer_ventilation_cash(mouvements, compte_id)["solde"]
 
 
+def impact_cash_mouvement(m: dict) -> Decimal:
+    """Impact SIGNÉ d'un mouvement sur le cash (+ entrée, − sortie), identique
+    à la colonne « Impact cash » de la liste. Sert à totaliser un ensemble
+    (éventuellement filtré) de mouvements, tous comptes/titres confondus."""
+    t = m.get("type")
+    if t == "alimentation_cash":
+        return _to_decimal(m.get("montant"))
+    if t in ("retrait_cash", "frais"):
+        return -_to_decimal(m.get("montant"))
+    if t == "achat":
+        return -(
+            _to_decimal(m.get("quantite")) * _to_decimal(m.get("prix_unitaire"))
+            + _to_decimal(m.get("frais_courtage"))
+        )
+    if t == "vente":
+        return (
+            _to_decimal(m.get("quantite")) * _to_decimal(m.get("prix_unitaire_vente"))
+            - _to_decimal(m.get("frais_courtage"))
+        )
+    if t == "dividende_recu":
+        net = m.get("montant_net_eur")
+        brut = m.get("montant_brut_total")
+        return _to_decimal(net if net not in (None, "") else brut)
+    return ZERO
+
+
 def calculer_positions(mouvements: Iterable[dict], compte_id: str) -> dict[str, Decimal]:
     """Renvoie {titre_id: quantité courante} pour un compte.
 

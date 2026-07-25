@@ -299,6 +299,15 @@ body {
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
   white-space: nowrap;
+  text-decoration: none;
+}
+/* Le badge est aussi le bouton « supprimer les filtres » : il vire au rouge
+   au survol / focus pour signaler l'action de suppression. */
+a.filtres-badge { cursor: pointer; }
+a.filtres-badge:hover,
+a.filtres-badge:focus {
+  background: var(--rouge);
+  color: #fff;
 }
 
 /* Pills (badges de type de mouvement) */
@@ -344,8 +353,17 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.table-mouvements tr:last-child td { border-bottom: none; }
+.table-mouvements tbody tr:last-child td { border-bottom: none; }
 .table-mouvements .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Ligne de total (pied de table) : net cash des mouvements affichés (filtrés). */
+.table-mouvements tfoot .total-mouvements td {
+  border-top: 2px solid var(--gris-bordure);
+  border-bottom: none;
+  background: #f4f7ff;
+  font-weight: 600;
+  padding-top: 0.55rem;
+}
+.table-mouvements tfoot .total-mouvements td[colspan="7"] { text-align: right; }
 .table-mouvements .actions { white-space: nowrap; text-align: right; }
 .table-mouvements .actions a { text-decoration: none; margin-right: 0.4rem; }
 .table-mouvements .notes small { display: block; color: var(--gris-muet); }

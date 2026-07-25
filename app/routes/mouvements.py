@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from flask import (
     Blueprint,
     Response,
@@ -21,6 +23,7 @@ from app.services.mouvements import (
     ErreursValidation,
 )
 from app.services.pru import quantite_disponible
+from app.services.soldes import impact_cash_mouvement
 
 
 bp = Blueprint("mouvements", __name__, url_prefix="/mouvements")
@@ -74,6 +77,9 @@ def liste():
         "date_fin": vals["date_fin"] or None,
     }
     mvts = svc.lister(depot, **filtres)
+    total_impact = sum(
+        (impact_cash_mouvement(m) for m in mvts), Decimal("0")
+    ).quantize(Decimal("0.01"))
     comptes = depot.charger("comptes")
     titres = depot.charger("titres")
     titres_par_id = {t["id"]: t for t in titres}
@@ -87,6 +93,7 @@ def liste():
         comptes_par_id=comptes_par_id,
         filtres=filtres,
         nb_filtres_actifs=nb_filtres_actifs,
+        total_impact=total_impact,
         types=LIBELLES_TYPES,
     )
 
