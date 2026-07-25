@@ -129,6 +129,21 @@ def test_pru_aucune_position():
     assert calculer_pru([], "c1", "t1") is None
 
 
+def test_pru_pleine_precision_pour_pv_exacte():
+    """Le PRU n'est PAS arrondi à 2 décimales : sinon (PRU arrondi × quantité)
+    fausse la PV latente (cas DCAM : 6,0158 arrondi à 6,02 → −0,13 € sur 31)."""
+    mvts = [
+        _achat("a1", "2026-05-05", "5", "5.7936"),
+        _achat("a2", "2026-06-05", "13", "5.995"),
+        _achat("a3", "2026-07-06", "13", "6.122"),
+    ]
+    pru = calculer_pru(mvts, "c1", "t1")  # coût 186,489 / 31 = 6,0158…
+    assert pru != Decimal("6.02")                       # surtout pas l'arrondi
+    assert pru.quantize(Decimal("0.0001")) == Decimal("6.0158")
+    # coût total exact = PRU × quantité (pas de perte d'arrondi)
+    assert (pru * Decimal("31")).quantize(Decimal("0.01")) == Decimal("186.49")
+
+
 def test_fifo_exclure_id_pour_edition_vente():
     """Lors de l'édition d'une vente, on doit pouvoir l'exclure du calcul."""
     achats = [_achat("a1", "2025-08-12", 2, "10.00", "0")]

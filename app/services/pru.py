@@ -200,4 +200,8 @@ def calculer_pru(
         (l.prix_unitaire * l.quantite_restante + l.frais_restants for l in lots),
         ZERO,
     )
-    return (cout / qte).quantize(CENT)
+    # PRU en PLEINE précision : ne PAS arrondir ici. L'arrondir à 2 décimales
+    # puis le multiplier par la quantité fausse la PV latente (l'erreur croît
+    # avec la quantité : ~0,13 € sur 31 titres, ex. DCAM). L'arrondi n'a lieu
+    # qu'à l'AFFICHAGE (filtre `euros`).
+    return cout / qte
