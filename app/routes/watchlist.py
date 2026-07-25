@@ -14,6 +14,7 @@ from flask import (
     url_for,
 )
 
+from app.routes._filtres import resoudre_filtres
 from app.services import titres as svc_titres
 from app.services import watchlist as svc
 from app.services.ics_export import generer_ics
@@ -25,9 +26,13 @@ bp = Blueprint("watchlist", __name__, url_prefix="/watchlist")
 @bp.route("/", methods=["GET"])
 def liste():
     depot = current_app.config["DEPOT"]
+    redir, vals, nb_filtres_actifs = resoudre_filtres(
+        "filtres_watchlist", "watchlist.liste", ("statut", "priorite"))
+    if redir:
+        return redir
     filtres = {
-        "statut": request.args.get("statut") or None,
-        "priorite": request.args.get("priorite") or None,
+        "statut": vals["statut"] or None,
+        "priorite": vals["priorite"] or None,
     }
     items = svc.lister(depot, **filtres)
     titres = {t["id"]: t for t in depot.charger("titres")}
@@ -38,6 +43,7 @@ def liste():
         titres=titres,
         comptes=comptes,
         filtres=filtres,
+        nb_filtres_actifs=nb_filtres_actifs,
         priorites=svc.PRIORITES,
         statuts=svc.STATUTS,
     )

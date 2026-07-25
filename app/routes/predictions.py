@@ -13,6 +13,7 @@ from flask import (
     url_for,
 )
 
+from app.routes._filtres import resoudre_filtres
 from app.services import predictions as svc
 
 
@@ -22,12 +23,18 @@ bp = Blueprint("predictions", __name__, url_prefix="/predictions")
 @bp.route("/", methods=["GET"])
 def liste():
     depot = current_app.config["DEPOT"]
-    statut = request.args.get("statut") or None
-    sens = request.args.get("sens") or None
+    redir, vals, _ = resoudre_filtres(
+        "filtres_predictions", "predictions.liste", ("statut", "sens"))
+    if redir:
+        return redir
+    statut = vals["statut"] or None
+    sens = vals["sens"] or None
     if statut not in (None, *svc.STATUTS):
         statut = None
     if sens not in (None, *svc.SENS):
         sens = None
+    # Compté après validation (une valeur invalide écartée ne « compte » pas)
+    nb_filtres_actifs = sum(1 for v in (statut, sens) if v)
 
     predictions = svc.lister(depot, statut=statut, sens=sens)
     stats = svc.taux_reussite(depot)
@@ -40,6 +47,7 @@ def liste():
         a_evaluer=a_evaluer,
         filtre_statut=statut,
         filtre_sens=sens,
+        nb_filtres_actifs=nb_filtres_actifs,
         libelles_sens=svc.LIBELLES_SENS,
         libelles_statuts=svc.LIBELLES_STATUTS,
         libelles_resultats=svc.LIBELLES_RESULTATS,

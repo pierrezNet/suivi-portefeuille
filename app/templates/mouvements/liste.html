@@ -14,10 +14,12 @@
   </div>
 </section>
 
-<form method="get" class="filtres-bar">
+<form method="get" class="filtres-bar {% if nb_filtres_actifs %}filtres-bar--actifs{% endif %}">
+  {# Marqueur : distingue une vraie soumission d'une simple arrivée sur la page #}
+  <input type="hidden" name="f" value="1">
   <label>
     <span>Compte</span>
-    <select name="compte_id">
+    <select name="compte_id" class="{% if filtres.compte_id %}filtre-actif{% endif %}">
       <option value="">— Tous —</option>
       {% for c in comptes %}
         <option value="{{ c.id }}" {% if filtres.compte_id == c.id %}selected{% endif %}>{{ c.nom }}</option>
@@ -26,7 +28,7 @@
   </label>
   <label>
     <span>Titre</span>
-    <select name="titre_id">
+    <select name="titre_id" class="{% if filtres.titre_id %}filtre-actif{% endif %}">
       <option value="">— Tous —</option>
       {% for t in titres %}
         <option value="{{ t.id }}" {% if filtres.titre_id == t.id %}selected{% endif %}>{{ t.ticker }} — {{ t.nom }}</option>
@@ -35,7 +37,7 @@
   </label>
   <label>
     <span>Type</span>
-    <select name="type">
+    <select name="type" class="{% if filtres.type_ %}filtre-actif{% endif %}">
       <option value="">— Tous —</option>
       {% for code, libelle in types.items() %}
         <option value="{{ code }}" {% if filtres.type_ == code %}selected{% endif %}>{{ libelle }}</option>
@@ -44,15 +46,22 @@
   </label>
   <label>
     <span>Du</span>
-    <input type="date" name="date_debut" value="{{ filtres.date_debut or '' }}">
+    <input type="date" name="date_debut" value="{{ filtres.date_debut or '' }}"
+           class="{% if filtres.date_debut %}filtre-actif{% endif %}">
   </label>
   <label>
     <span>Au</span>
-    <input type="date" name="date_fin" value="{{ filtres.date_fin or '' }}">
+    <input type="date" name="date_fin" value="{{ filtres.date_fin or '' }}"
+           class="{% if filtres.date_fin %}filtre-actif{% endif %}">
   </label>
   <div class="filtres-actions">
     <button type="submit" class="btn">Filtrer</button>
-    <a class="btn btn-link" href="{{ url_for('mouvements.liste') }}">Réinitialiser</a>
+    {% if nb_filtres_actifs %}
+      <a class="btn btn-link" href="{{ url_for('mouvements.liste', reinit=1) }}">Réinitialiser</a>
+      <span class="filtres-badge" title="Filtres actifs mémorisés">{{ nb_filtres_actifs }} filtre{{ 's' if nb_filtres_actifs > 1 }} actif{{ 's' if nb_filtres_actifs > 1 }}</span>
+    {% else %}
+      <a class="btn btn-link" href="{{ url_for('mouvements.liste', reinit=1) }}">Réinitialiser</a>
+    {% endif %}
   </div>
 </form>
 

@@ -277,7 +277,29 @@ body {
   font-family: inherit;
   font-size: 0.95rem;
 }
-.filtres-actions { display: flex; gap: 0.5rem; align-items: center; }
+.filtres-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+
+/* Rappel visuel des filtres actifs (mémorisés en session) : accent sur la
+   barre + surbrillance des champs renseignés + badge de comptage. */
+.filtres-bar--actifs {
+  border-left: 4px solid var(--bleu-france);
+  background: #f4f7ff;
+}
+.filtres-bar .filtre-actif {
+  border-color: var(--bleu-france);
+  background: #e8edff;
+  font-weight: 600;
+}
+.filtres-badge {
+  display: inline-block;
+  background: var(--bleu-france);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
 
 /* Pills (badges de type de mouvement) */
 .pill {

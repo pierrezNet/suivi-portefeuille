@@ -15,6 +15,7 @@ from flask import (
     url_for,
 )
 
+from app.routes._filtres import resoudre_filtres
 from app.services import evenements as svc
 from app.services import virements_programmes as svc_vp
 
@@ -25,8 +26,14 @@ bp = Blueprint("evenements", __name__, url_prefix="/evenements")
 @bp.route("/", methods=["GET"])
 def liste():
     depot = current_app.config["DEPOT"]
-    inclure_passe = request.args.get("inclure_passe") == "1"
-    date_debut_saisi = request.args.get("date_debut") or None
+    redir, vals, nb_filtres_actifs = resoudre_filtres(
+        "filtres_evenements", "evenements.liste",
+        ("titre_id", "type", "date_debut", "date_fin", "inclure_passe"),
+    )
+    if redir:
+        return redir
+    inclure_passe = vals["inclure_passe"] == "1"
+    date_debut_saisi = vals["date_debut"] or None
     today_iso = _date.today().isoformat()
 
     # Par défaut, n'afficher que les événements >= aujourd'hui.
@@ -40,10 +47,10 @@ def liste():
         date_debut_effective = today_iso
 
     filtres = {
-        "titre_id": request.args.get("titre_id") or None,
-        "type_": request.args.get("type") or None,
+        "titre_id": vals["titre_id"] or None,
+        "type_": vals["type"] or None,
         "date_debut": date_debut_saisi,  # ce qui a été tapé (pour repopuler)
-        "date_fin": request.args.get("date_fin") or None,
+        "date_fin": vals["date_fin"] or None,
     }
     items = svc.lister(
         depot,
@@ -72,6 +79,7 @@ def liste():
         titres=titres,
         titres_par_id=titres_par_id,
         filtres=filtres,
+        nb_filtres_actifs=nb_filtres_actifs,
         inclure_passe=inclure_passe,
         passe_masque=not inclure_passe and not date_debut_saisi,
         types=svc.LIBELLES_TYPES,

@@ -23,10 +23,11 @@
   </div>
 </details>
 
-<form method="get" class="filtres-bar">
+<form method="get" class="filtres-bar {% if nb_filtres_actifs %}filtres-bar--actifs{% endif %}">
+  <input type="hidden" name="f" value="1">
   <label>
     <span>Statut</span>
-    <select name="statut">
+    <select name="statut" class="{% if filtres.statut %}filtre-actif{% endif %}">
       <option value="">— Tous —</option>
       {% for s in statuts %}
         <option value="{{ s }}" {% if filtres.statut == s %}selected{% endif %}>{{ s }}</option>
@@ -35,7 +36,7 @@
   </label>
   <label>
     <span>Priorité</span>
-    <select name="priorite">
+    <select name="priorite" class="{% if filtres.priorite %}filtre-actif{% endif %}">
       <option value="">— Toutes —</option>
       {% for p in priorites %}
         <option value="{{ p }}" {% if filtres.priorite == p %}selected{% endif %}>{{ p }}</option>
@@ -44,7 +45,8 @@
   </label>
   <div class="filtres-actions">
     <button type="submit" class="btn">Filtrer</button>
-    <a class="btn btn-link" href="{{ url_for('watchlist.liste') }}">Réinitialiser</a>
+    <a class="btn btn-link" href="{{ url_for('watchlist.liste', reinit=1) }}">Réinitialiser</a>
+    {% if nb_filtres_actifs %}<span class="filtres-badge" title="Filtres actifs mémorisés">{{ nb_filtres_actifs }} filtre{{ 's' if nb_filtres_actifs > 1 }} actif{{ 's' if nb_filtres_actifs > 1 }}</span>{% endif %}
   </div>
 </form>
 

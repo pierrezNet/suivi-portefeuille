@@ -14,6 +14,7 @@ from flask import (
     url_for,
 )
 
+from app.routes._filtres import resoudre_filtres
 from app.services import mouvements as svc
 from app.services.mouvements import (
     LIBELLES_TYPES,
@@ -59,12 +60,18 @@ def export_csv():
 @bp.route("/", methods=["GET"])
 def liste():
     depot = current_app.config["DEPOT"]
+    redir, vals, nb_filtres_actifs = resoudre_filtres(
+        "filtres_mouvements", "mouvements.liste",
+        ("compte_id", "titre_id", "type", "date_debut", "date_fin"),
+    )
+    if redir:
+        return redir
     filtres = {
-        "compte_id": request.args.get("compte_id") or None,
-        "titre_id": request.args.get("titre_id") or None,
-        "type_": request.args.get("type") or None,
-        "date_debut": request.args.get("date_debut") or None,
-        "date_fin": request.args.get("date_fin") or None,
+        "compte_id": vals["compte_id"] or None,
+        "titre_id": vals["titre_id"] or None,
+        "type_": vals["type"] or None,
+        "date_debut": vals["date_debut"] or None,
+        "date_fin": vals["date_fin"] or None,
     }
     mvts = svc.lister(depot, **filtres)
     comptes = depot.charger("comptes")
@@ -79,6 +86,7 @@ def liste():
         titres_par_id=titres_par_id,
         comptes_par_id=comptes_par_id,
         filtres=filtres,
+        nb_filtres_actifs=nb_filtres_actifs,
         types=LIBELLES_TYPES,
     )
 

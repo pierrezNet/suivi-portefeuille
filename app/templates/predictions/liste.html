@@ -57,10 +57,11 @@
 {% endif %}
 
 {# --- Filtres --- #}
-<form method="get" class="filtres-bar">
+<form method="get" class="filtres-bar {% if nb_filtres_actifs %}filtres-bar--actifs{% endif %}">
+  <input type="hidden" name="f" value="1">
   <label>
     Statut
-    <select name="statut" onchange="this.form.submit()">
+    <select name="statut" onchange="this.form.submit()" class="{% if filtre_statut %}filtre-actif{% endif %}">
       <option value="">Tous</option>
       {% for k, lbl in libelles_statuts.items() %}
         <option value="{{ k }}" {% if filtre_statut == k %}selected{% endif %}>{{ lbl }}</option>
@@ -69,15 +70,18 @@
   </label>
   <label>
     Sens
-    <select name="sens" onchange="this.form.submit()">
+    <select name="sens" onchange="this.form.submit()" class="{% if filtre_sens %}filtre-actif{% endif %}">
       <option value="">Tous</option>
       {% for k, lbl in libelles_sens.items() %}
         <option value="{{ k }}" {% if filtre_sens == k %}selected{% endif %}>{{ lbl }}</option>
       {% endfor %}
     </select>
   </label>
-  {% if filtre_statut or filtre_sens %}
-    <a href="{{ url_for('predictions.liste') }}" class="btn-link">Réinitialiser</a>
+  {% if nb_filtres_actifs %}
+  <div class="filtres-actions">
+    <a href="{{ url_for('predictions.liste', reinit=1) }}" class="btn-link">Réinitialiser</a>
+    <span class="filtres-badge" title="Filtres actifs mémorisés">{{ nb_filtres_actifs }} filtre{{ 's' if nb_filtres_actifs > 1 }} actif{{ 's' if nb_filtres_actifs > 1 }}</span>
+  </div>
   {% endif %}
 </form>
 
