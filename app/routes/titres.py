@@ -22,6 +22,12 @@ from app.services import notes_titres as svc_notes
 from app.services import titres as svc
 from app.services import watchlist as svc_watchlist
 from app.services.categories import CATEGORIES
+from app.services.etf_amundi import (
+    ETF_AMUNDI,
+    est_etf_amundi,
+    get_etf_composition,
+    lire_cache,
+)
 from app.services.evenements import LIBELLES_TYPES as LIBELLES_EVENEMENT
 from app.services.evenements import lister as lister_evenements
 from app.services.mouvements import lister as lister_mouvements
@@ -172,9 +178,20 @@ def detail(titre_id: str):
         "commentaire": "\n".join(p.get("commentaire", "") for p in paliers),
     }
 
+    # Exposition réelle de l'indice (ETF Amundi synthétique) : lecture du cache
+    # LOCAL uniquement — aucun appel réseau au rendu. Le réseau n'est déclenché
+    # que par le bouton « Rafraîchir » (route rafraichir_etf ci-dessous).
+    isin = titre.get("isin")
+    etf_isin = isin if est_etf_amundi(isin) else None
+    etf_compo = lire_cache(isin) if etf_isin else None
+    etf_meta = ETF_AMUNDI.get(isin) if etf_isin else None
+
     return render_template(
         "titres/detail.html",
         titre=titre,
+        etf_isin=etf_isin,
+        etf_compo=etf_compo,
+        etf_meta=etf_meta,
         watch_liee=watch_liee,
         ordres_actifs=ordres_actifs,
         symbole=symbole,
@@ -194,6 +211,29 @@ def detail(titre_id: str):
         types_note_codes=svc_notes.TYPES_NOTE,
         evenements_pour_lien=depot.charger("evenements"),
     )
+
+
+@bp.route("/<titre_id>/etf/refresh", methods=["POST"])
+def rafraichir_etf(titre_id: str):
+    """Force la mise à jour de la compo indice depuis Amundi (seul appel réseau).
+    Débrayable : en cas d'échec, la page reste fonctionnelle (flash + redirect)."""
+    depot = current_app.config["DEPOT"]
+    titre = svc.trouver(depot, titre_id)
+    if not titre:
+        abort(404)
+    isin = titre.get("isin")
+    if not est_etf_amundi(isin):
+        abort(404)
+    data = get_etf_composition(isin, force_refresh=True)
+    if data:
+        flash("Composition de l'indice mise à jour.", "success")
+    else:
+        flash(
+            "Composition indisponible pour le moment (réseau ou API). "
+            "Réessaie plus tard.",
+            "error",
+        )
+    return redirect(url_for("titres.detail", titre_id=titre_id))
 
 
 def _watch_du_titre(depot, titre: dict) -> dict:

@@ -53,6 +53,58 @@
   </div>
 </section>
 
+{# === Exposition réelle de l'indice (ETF Amundi synthétique) ======= #}
+{% if etf_isin %}
+<section class="bloc">
+  <header class="bloc-header">
+    <h2>🌍 Exposition réelle de l'indice{% if etf_meta and etf_meta.indice %} — {{ etf_meta.indice }}{% endif %}</h2>
+    <form method="post" action="{{ url_for('titres.rafraichir_etf', titre_id=titre.id) }}">
+      <button type="submit" class="btn" title="Rafraîchir depuis Amundi (1 appel réseau)">↻ Rafraîchir</button>
+    </form>
+  </header>
+  <p class="muted">Exposition économique via swap — diffère du panier de substitution physique détenu par le fonds.</p>
+
+  {% if etf_compo %}
+    <p class="muted">Composition de l'indice au {{ etf_compo.date|date_fr }}.</p>
+
+    {% set top10 = etf_compo.INDEX_TOP10 or [] %}
+    {% if top10 %}
+    <table class="table-mouvements">
+      <thead>
+        <tr><th>Ligne</th><th class="num">Poids</th><th>Pays</th><th>Secteur</th></tr>
+      </thead>
+      <tbody>
+        {% for l in top10 %}
+        <tr>
+          <td>{{ l.nom }}</td>
+          <td class="num">{{ l.poids_pct }} %</td>
+          <td>{{ l.pays or '—' }}</td>
+          <td>{{ l.secteur or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% set pays = (etf_compo.INDEX_COUNTRIES or [])[:10] %}
+    {% if pays %}
+    <h3>Répartition par pays (top 10)</h3>
+    <ul class="etf-pays">
+      {% for p in pays %}
+      <li>
+        <span class="etf-pays-nom">{{ p.nom }}</span>
+        <span class="etf-pays-barre"><span style="width:{{ p.poids_pct }}%"></span></span>
+        <span class="num">{{ p.poids_pct }} %</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  {% else %}
+    <p class="muted">Composition indisponible pour le moment — réessaie plus tard (bouton ↻ Rafraîchir).</p>
+  {% endif %}
+</section>
+{% endif %}
+
 {# === Journal de bord agrégé ===================================== #}
 <section class="bloc">
   <header class="bloc-header">

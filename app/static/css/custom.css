@@ -374,6 +374,30 @@ a.filtres-badge:focus {
   font-size: 0.9em;
 }
 
+/* Exposition ETF : répartition par pays (petites barres horizontales) */
+.etf-pays { list-style: none; padding: 0; margin: 0.4rem 0 0; }
+.etf-pays li {
+  display: grid;
+  grid-template-columns: 10rem 1fr 3.5rem;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.15rem 0;
+  font-size: 0.9rem;
+}
+.etf-pays-nom { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.etf-pays-barre {
+  background: var(--gris-fond);
+  border-radius: 3px;
+  height: 0.7rem;
+  overflow: hidden;
+}
+.etf-pays-barre > span {
+  display: block;
+  height: 100%;
+  background: var(--bleu-france);
+  border-radius: 3px;
+}
+
 /* Cartes de choix de type */
 .grille-types {
   display: grid;
