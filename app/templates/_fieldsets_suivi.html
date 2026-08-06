@@ -1,0 +1,77 @@
+{# Fieldsets de suivi réutilisables (plan de rachat + ordre limite), partagés
+   entre la liste-pivot des titres, la fiche détail et le formulaire de titre.
+   `donnees` : dict des valeurs pré-remplies ; `erreurs` : dict optionnel. #}
+
+{% macro paliers_fieldset(donnees, erreurs={}) %}
+<fieldset class="champ champ-large paliers-fieldset plan-editor">
+  <legend>🎯 Plan de rachat</legend>
+  <p class="muted">Quantité cible visée, puis les paliers : premier achat et renforcement(s). Indicatif — pas un ordre chez le broker.</p>
+  <label class="champ" style="max-width:18rem">
+    <span>Quantité cible (total visé)</span>
+    <input type="number" step="1" min="0" name="cible_totale"
+           value="{{ donnees.get('cible_totale', '') }}" placeholder="ex : 10">
+  </label>
+  <div class="plan-rows"></div>
+  <button type="button" class="btn btn-sm plan-add">+ Ajouter un renforcement</button>
+  <p class="muted plan-somme" aria-live="polite"></p>
+  {# Transport réel (pré-rempli côté serveur, tenu à jour par le JS). Reste
+     fonctionnel sans JS : les 3 champs restent éditables en repli. #}
+  <div class="plan-fallback">
+    <div class="paliers-grille">
+      <label><span>Prix — un par ligne</span>
+        <textarea class="plan-field-prix" name="paliers_prix" rows="3" placeholder="52&#10;45">{{ donnees.get('paliers_prix', '') }}</textarea></label>
+      <label><span>Quantité</span>
+        <textarea class="plan-field-quantite" name="paliers_quantite" rows="3" placeholder="2&#10;2">{{ donnees.get('paliers_quantite', '') }}</textarea></label>
+      <label><span>Étape</span>
+        <textarea class="plan-field-commentaire" name="paliers_commentaire" rows="3" placeholder="Premier achat&#10;Renforcement">{{ donnees.get('paliers_commentaire', '') }}</textarea></label>
+    </div>
+  </div>
+  {% if erreurs.get('paliers_rachat') %}<small class="erreur">{{ erreurs['paliers_rachat'] }}</small>{% endif %}
+</fieldset>
+{% endmacro %}
+
+{% macro ordre_fieldset(donnees, erreurs={}) %}
+<fieldset class="champ champ-large paliers-fieldset">
+  <legend>📋 Ordre limite actif (broker)</legend>
+  <p class="muted">
+    Un seul ordre limite ponctuel à la fois pour cette position
+    (ex : « si Infineon ≤ 60 € »). Visible dans l'agenda + calendrier ICS.
+    Vide les champs pour annuler l'ordre actif.
+    <br>
+    <em>Pas pour les DCA récurrents (Amundi, etc.) → utiliser le menu
+    <a href="{{ url_for('virements_programmes.liste') }}">Programmes</a>.</em>
+  </p>
+  <div class="paliers-grille" style="grid-template-columns: 0.7fr 0.75fr 0.55fr 1fr 1.6fr">
+    <label>
+      <span>Sens</span>
+      <select name="ordre_sens">
+        <option value="achat" {% if (donnees.get('ordre_sens') or 'achat') == 'achat' %}selected{% endif %}>Achat</option>
+        <option value="vente" {% if donnees.get('ordre_sens') == 'vente' %}selected{% endif %}>Vente</option>
+      </select>
+    </label>
+    <label>
+      <span>Prix limite</span>
+      <input type="number" step="0.01" name="ordre_prix"
+             value="{{ donnees.get('ordre_prix', '') }}" placeholder="175">
+    </label>
+    <label>
+      <span>Qté (titres)</span>
+      <input type="number" step="0.01" name="ordre_quantite"
+             value="{{ donnees.get('ordre_quantite', '') }}" placeholder="1">
+    </label>
+    <label>
+      <span>Validité</span>
+      <input type="date" name="ordre_validite"
+             value="{{ donnees.get('ordre_validite', '') }}">
+    </label>
+    <label>
+      <span>Note</span>
+      <textarea name="ordre_note" rows="2" placeholder="Ordre conditionnel — doublement de la position">{{ donnees.get('ordre_note', '') }}</textarea>
+    </label>
+  </div>
+  {# Préserver id et date_creation de l'ordre actif lors d'une re-saisie #}
+  <input type="hidden" name="ordre_id" value="{{ donnees.get('ordre_id', '') }}">
+  <input type="hidden" name="ordre_date_creation" value="{{ donnees.get('ordre_date_creation', '') }}">
+  {% if erreurs.get('ordres_actifs') %}<small class="erreur">{{ erreurs['ordres_actifs'] }}</small>{% endif %}
+</fieldset>
+{% endmacro %}

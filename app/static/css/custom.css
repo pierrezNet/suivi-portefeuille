@@ -72,6 +72,10 @@ body {
   border-bottom: 2px solid transparent;
 }
 .nav-main a:hover { border-bottom-color: #fff; }
+.nav-main a.nav-actif {
+  border-bottom-color: #fff;
+  font-weight: 700;
+}
 .nav-main .nav-disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -150,6 +154,67 @@ body {
 }
 .badge-pea { background: var(--vert); color: #fff; }
 .badge-cto { background: var(--bleu-france); color: #fff; }
+/* Marqueur « détenu » dans la liste-pivot des titres */
+.tag-detenu {
+  display: inline-block;
+  font-size: 0.68rem;
+  padding: 0.02rem 0.35rem;
+  border-radius: 3px;
+  background: #eaf5ea;
+  border: 1px solid #b7d9b7;
+  color: var(--vert);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* Liste-pivot : ligne cliquable + panneau d'actions déplié */
+.table-pivot .titre-ligne { cursor: pointer; }
+.table-pivot .titre-ligne:hover { background: #f4f9ff; }
+.table-pivot .titre-ligne.ouvert { background: #eef4fb; }
+.table-pivot .titre-panneau > td { background: #f7fafd; border-top: 0; }
+.panneau-actions { padding: 0.5rem 0.25rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.panneau-liens { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.panneau-ordre-actif {
+  padding: 0.4rem 0.6rem;
+  background: #fff;
+  border: 1px solid #c5d6e8;
+  border-left: 3px solid var(--vert);
+  border-radius: 4px;
+}
+.panneau-form { background: #fff; border: 1px solid #dbe3ea; border-radius: 4px; padding: 0.3rem 0.6rem; }
+.panneau-form > summary { cursor: pointer; color: var(--bleu-france); font-size: 0.9rem; padding: 0.2rem 0; }
+.btn-sm { padding: 0.15rem 0.55rem; font-size: 0.82rem; }
+
+/* Éditeur de plan de rachat (quantité cible + paliers en lignes) */
+.plan-editor { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.plan-editor input[name="cible_totale"] { width: 100%; max-width: 10rem; box-sizing: border-box; }
+.plan-rows { display: flex; flex-direction: column; gap: 0.35rem; margin: 0.4rem 0; }
+.plan-row { display: flex; align-items: center; gap: 0.3rem; flex-wrap: nowrap; }
+.plan-row .p-label {
+  flex: 0 0 auto; min-width: 5.8rem; text-align: center;
+  background: var(--bleu-france); font-size: 0.68rem; padding: 0.1rem 0.35rem;
+}
+.plan-row .p-prix, .plan-row .p-qte {
+  flex: 1 1 0; width: auto; min-width: 2.6rem; box-sizing: border-box;
+}
+.plan-row .p-remove { flex: 0 0 auto; }
+.plan-somme { font-size: 0.85rem; margin: 0.3rem 0 0; }
+.plan-add { margin-top: 0.2rem; }
+
+/* Plan (lecture seule) : paliers réalisés vs à venir + action */
+.paliers-plan .palier-ligne { padding: 0.2rem 0; line-height: 1.5; }
+.pill-realise { background: var(--vert); }
+.palier-realise { opacity: 0.85; }
+.palier-to-ordre { margin-left: 0.3rem; white-space: nowrap; }
+
+/* Historique des ordres (colonne étroite de la fiche) : compact et sans casse */
+.table-historique-ordres { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.table-historique-ordres th,
+.table-historique-ordres td { padding: 0.25rem 0.35rem; border-bottom: 1px solid var(--gris-bordure); vertical-align: middle; }
+.table-historique-ordres th { text-align: left; font-weight: 600; color: var(--gris-muet); }
+.table-historique-ordres .nowrap { white-space: nowrap; }
+.table-historique-ordres .pill { font-size: 0.68rem; }
+.table-historique-ordres .btn-link { padding: 0; white-space: nowrap; }
 .compte-solde {
   text-align: right;
   display: flex;
@@ -498,6 +563,11 @@ a.filtres-badge:focus {
 .table-titres .num { text-align: right; font-variant-numeric: tabular-nums; }
 .table-titres a { color: var(--bleu-france); text-decoration: none; }
 .table-titres a:hover { text-decoration: underline; }
+/* Les liens stylés en boutons (panneau d'actions) gardent leur couleur de bouton
+   plutôt que le bleu des liens du tableau — sinon texte bleu sur bouton bleu. */
+.table-titres a.btn { color: var(--gris-texte); }
+.table-titres a.btn:hover { text-decoration: none; }
+.table-titres a.btn-primary { color: #fff; }
 .table-titres code {
   background: var(--gris-fond);
   padding: 0.1rem 0.4rem;
@@ -511,7 +581,7 @@ a.filtres-badge:focus {
 /* Pages détail : grille 2 cols + blocs */
 .grille-2cols {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
   gap: 1.25rem;
   margin-bottom: 1.25rem;
 }
@@ -656,9 +726,13 @@ a.filtres-badge:focus {
 .pill-priorite-basse   { background: var(--gris-muet); }
 .pill-priorite-veille  { background: var(--jaune); color: var(--gris-texte); }
 .pill-statut           { background: #555; }
+.pill-statut-conservation      { background: var(--bleu-france); }
+.pill-statut-veille            { background: #6b7a90; }
+.pill-statut-achat_souhaite    { background: #007c8a; }
 .pill-statut-renforcement      { background: var(--vert); }
 .pill-statut-rachat_potentiel  { background: #6e2782; }
 .pill-statut-ipo_attendue      { background: var(--jaune); color: var(--gris-texte); }
+.pill-statut-levee_fonds       { background: #6a5acd; }
 .pill-statut-abandonne         { background: var(--gris-muet); }
 
 .paliers {

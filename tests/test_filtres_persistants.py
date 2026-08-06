@@ -14,7 +14,8 @@ def depot(tmp_path: Path) -> Depot:
     d = Depot(tmp_path)
     d.enregistrer("comptes", [{"id": "cto", "nom": "CTO", "type": "CTO"}])
     d.enregistrer("titres", [
-        {"id": "stm", "ticker": "STMPA", "nom": "STMicro", "devise": "EUR"},
+        {"id": "stm", "ticker": "STMPA", "nom": "STMicro", "devise": "EUR",
+         "statut": "veille", "priorite": "moyenne"},
     ])
     d.enregistrer("watchlist", [
         {"id": "w1", "ticker": "AIR", "nom": "Air Liquide",
@@ -41,7 +42,7 @@ def _client(depot):
 # (page, url, param, valeur) — un filtre représentatif par page.
 CAS = [
     ("evenements", "/evenements/", "titre_id", "stm"),
-    ("watchlist", "/watchlist/", "statut", "actif"),
+    ("titres", "/titres/", "statut", "veille"),
     ("predictions", "/predictions/", "sens", "hausse"),
 ]
 
@@ -74,7 +75,7 @@ def test_filtre_signale_puis_reapplique_puis_reinit(depot, nom, url, param, val)
 def test_filtres_cloisonnes_par_page(depot):
     """Un filtre posé sur une page ne fuite pas sur une autre."""
     c = _client(depot)
-    c.get("/watchlist/?f=1&statut=actif")     # filtre watchlist mémorisé
-    # La page prédictions ne doit pas être redirigée à cause du filtre watchlist
+    c.get("/titres/?f=1&statut=veille")     # filtre titres mémorisé
+    # La page prédictions ne doit pas être redirigée à cause du filtre titres
     r = c.get("/predictions/")
     assert r.status_code == 200

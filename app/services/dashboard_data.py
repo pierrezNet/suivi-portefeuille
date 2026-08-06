@@ -21,8 +21,7 @@ from app.services.soldes import (
     calculer_ventilation_cash,
 )
 from app.services.stockage import Depot
-from app.services.watchlist import lister as lister_watchlist
-from app.services.watchlist import reserve_cash_par_compte
+from app.services.suivi import reserve_cash_par_compte
 
 
 JOURS_AGENDA_DEFAUT = 60
@@ -101,10 +100,11 @@ def construire(
     comptes = depot.charger("comptes")
     titres = {t["id"]: t for t in depot.charger("titres")}
     mouvements = depot.charger("mouvements")
-    watchlist_brut = depot.charger("watchlist")
+    # Le suivi (ordres, échéances, priorité) vit désormais sur le titre lui-même.
+    titres_suivi = list(titres.values())
     # Cash « réservé » par les ordres d'achat en attente, par compte.
     reserve_par_compte = reserve_cash_par_compte(
-        watchlist_brut, today_iso=today.isoformat()
+        titres_suivi, today_iso=today.isoformat()
     )
 
     annee_courante = today.year
@@ -204,7 +204,7 @@ def construire(
     )
     echeances_watch = [
         w
-        for w in watchlist_brut
+        for w in titres_suivi
         if (w.get("echeance_abandon") or "")
         and today_iso <= w["echeance_abandon"] <= horizon
     ]
@@ -237,7 +237,7 @@ def construire(
         )
 
     # Ordres actifs (achat ou vente) en attente dont la validité tombe dans l'horizon
-    for w in watchlist_brut:
+    for w in titres_suivi:
         for ordre in w.get("ordres_actifs") or []:
             if ordre.get("statut") != "en_attente":
                 continue
@@ -268,7 +268,7 @@ def construire(
     # Rappel LECTURE SEULE : tous les ordres limites actifs (achat ET vente),
     # sans filtre d'horizon — pour se rappeler ses ordres sans ouvrir le broker.
     ordres_actifs: list[dict] = []
-    for w in watchlist_brut:
+    for w in titres_suivi:
         for ordre in w.get("ordres_actifs") or []:
             if ordre.get("statut") != "en_attente":
                 continue
@@ -300,8 +300,23 @@ def construire(
         for p in predictions.lister(depot, statut="en_cours")
     ]
 
-    # Watchlist priorité haute (max 6)
-    watchlist_haute = lister_watchlist(depot, priorite="haute")[:6]
+    # Titres suivis en priorité haute (max 6). Projection légère : on n'expose
+    # que ce qu'affichent le dashboard et le mobile (pas la fiche complète, pour
+    # ne pas gonfler le payload chiffré avec historiques/notes/thèses).
+    watchlist_haute = [
+        {
+            "id": t["id"],
+            "ticker": t.get("ticker"),
+            "nom": t.get("nom"),
+            "these_lt": t.get("these_lt"),
+            "priorite": t.get("priorite"),
+            "statut": t.get("statut"),
+        }
+        for t in sorted(
+            (t for t in titres_suivi if t.get("priorite") == "haute"),
+            key=lambda t: (t.get("nom") or t.get("ticker") or ""),
+        )[:6]
+    ]
 
     # Courbe d'équity : base auto-cohérente = « capital investi » (total −
     # plus-value latente, tirée du snapshot lui-même) → bande = PV latentes,

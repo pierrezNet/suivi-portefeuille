@@ -58,7 +58,16 @@ def liste():
 def nouvelle():
     depot = current_app.config["DEPOT"]
     erreurs: dict[str, str] = {}
-    donnees = dict(request.form) if request.method == "POST" else {}
+    if request.method == "POST":
+        donnees = dict(request.form)
+    else:
+        # Pré-remplissage depuis la liste-pivot des titres (« Faire une
+        # prédiction »). `titre_id` renseigné → le formulaire pré-sélectionne le
+        # titre ; ticker/nom/devise sont auto-complétés à la validation.
+        donnees = {
+            k: v for k, v in request.args.items()
+            if k in ("titre_id", "sens", "cours_reference") and v
+        }
 
     if request.method == "POST":
         try:

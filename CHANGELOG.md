@@ -4,6 +4,30 @@ Historique des livraisons. Format inspiré de [Keep a Changelog](https://keepach
 
 ---
 
+## [v2.2] — 2026-08-06 · Fusion Titres + Watchlist en une liste-pivot
+
+La **Watchlist disparaît en tant qu'onglet** : son suivi est absorbé par le titre. Un seul onglet **Titres** liste tout (détenus + surveillés) avec un panneau d'actions par ligne. Statuts revus, plan de rachat paramétré.
+
+### Ajouts
+
+- **Liste-pivot unique** — tableau (statut, priorité, position, cours, PV) + **panneau d'actions au clic** : plan de rachat, ordre + exécution, DCA, prédiction, note, actualiser Yahoo, ouvrir la fiche. Filtres statut/priorité persistants. ([app/templates/titres/liste.html](app/templates/titres/liste.html))
+- **Le titre porte son propre suivi** — `statut`, `priorite`, `compte_cible`, `ordres_actifs`, `paliers_rachat`, `echeance_abandon`, `cible_totale`, `notes_suivi`. Helpers purs extraits dans [app/services/suivi.py](app/services/suivi.py) (ordres, paliers, réserve cash) réutilisés par titres et par la compat watchlist.
+- **Plan de rachat paramétré** — quantité **cible totale** + paliers labellisés (Premier achat, Renforcement) + bouton « + Ajouter un renforcement », compteur Σ quantités / cible. Marquage **✓ réalisé** des paliers couverts par la position, et bouton **« ▸ En faire un ordre »** qui pré-remplit le formulaire d'ordre.
+- **Filtre « Inclure les abandonnés »** (masqués par défaut) sur la liste ; priorité affichée `----` pour un titre abandonné.
+
+### Modifications
+
+- **Statuts revus** (`conservation`, `veille`, `achat_souhaite`, `renforcement`, `rachat_potentiel`, `ipo_attendue`, `levee_fonds`, `abandonne`) — l'ancien `actif` ambigu disparaît. Après un achat, un titre `veille`/`achat_souhaite` passe en `conservation`.
+- **Menu** — l'onglet « Watchlist » est retiré ; ses routes deviennent des **redirections de compatibilité**. Dashboard et ICS recâblés sur les titres.
+
+### Migrations & données
+
+- **v3** — recopie la watchlist sur les titres (watch liées absorbées, orphelines converties en titres, thèses non écrasées) ; `watchlist.json` conservé pour rollback.
+- **v4** — remap du statut `actif` → `conservation` (si détenu) ou `veille`.
+- Anciens paliers `a/N` (fraction cumulée) convertis en **cible + quantités-delta**.
+
+---
+
 ## [v2.1] — 2026-07-08 · Gestion depuis la fiche & clarté trésorerie
 
 Session de raffinements : investir via le DCA devient fluide, la **fiche titre** devient le centre de gestion (mouvements, ordres, plan de rachat), et le tableau de bord gagne en clarté (trésorerie, catégories).

@@ -32,9 +32,18 @@ def test_creer_titre_id_unique_avec_collision(depot):
 
 
 def test_validation_champs_obligatoires(depot):
+    # Ni nom ni ticker → refus (il faut au moins l'un des deux).
     with pytest.raises(svc.ErreursValidation) as exc:
         svc.creer(depot, {})
-    assert "ticker" in exc.value.erreurs
+    assert "nom" in exc.value.erreurs
+
+
+def test_titre_nom_seul_accepte(depot):
+    # Valeur pré-IPO / non cotée : un nom suffit, pas besoin de ticker.
+    t = svc.creer(depot, {"nom": "ElevenLabs", "statut": "ipo_attendue"})
+    assert t["nom"] == "ElevenLabs"
+    assert t.get("ticker", "") == ""
+    assert t["id"] == "elevenlabs"
 
 
 def test_versioning_these_modifiee(depot):

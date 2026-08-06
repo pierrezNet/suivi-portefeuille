@@ -166,12 +166,9 @@ def test_aucun_titre_valorisable_renvoie_zero(tmp_path):
 def _depot_rappels(tmp_path):
     d = Depot(tmp_path)
     d.enregistrer("comptes", [{"id": "cto", "nom": "CTO", "type": "CTO", "devise_principale": "EUR"}])
-    d.enregistrer("titres", [])
-    d.enregistrer("mouvements", [])
-    d.enregistrer("evenements", [])
-    d.enregistrer("virements_programmes", [])
-    d.enregistrer("watchlist", [{
-        "id": "w1", "ticker": "STM", "nom": "STMicro", "devise": "EUR",
+    d.enregistrer("titres", [{
+        "id": "stm", "ticker": "STM", "nom": "STMicro", "devise": "EUR",
+        "statut": "veille", "priorite": "moyenne",
         "ordres_actifs": [
             # achat dont la validité est LOIN (hors horizon agenda 60 j)
             {"id": "o1", "prix_limite": "40", "quantite": 2, "sens": "achat",
@@ -184,6 +181,10 @@ def _depot_rappels(tmp_path):
              "statut": "annule"},
         ],
     }])
+    d.enregistrer("mouvements", [])
+    d.enregistrer("evenements", [])
+    d.enregistrer("virements_programmes", [])
+    d.enregistrer("watchlist", [])
     d.enregistrer("predictions", [
         {"id": "p1", "ticker": "NVDA", "nom": "Nvidia", "sens": "hausse",
          "cours_reference": "200", "date_echeance": "2026-12-01", "conviction": 3,

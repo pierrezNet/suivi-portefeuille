@@ -116,21 +116,21 @@ def construire_calendrier(depot: Depot) -> Calendar:
             rappel_jours=rappel,
         )
 
-    # 2. Échéances watchlist
-    for w in depot.charger("watchlist"):
+    # 2. Échéances de réévaluation (portées par le titre)
+    for w in depot.charger("titres"):
         d = _parse_iso_date(w.get("echeance_abandon"))
         if d is None:
             continue
         nom = w.get("nom") or w.get("ticker") or "Surveillance"
-        sommaire = f"[Watchlist] Réévaluer : {nom}"
+        sommaire = f"[Suivi] Réévaluer : {nom}"
         description_parts = []
         if w.get("these_lt"):
             description_parts.append(w["these_lt"])
-        if w.get("notes"):
-            description_parts.append(w["notes"])
+        if w.get("notes_suivi"):
+            description_parts.append(w["notes_suivi"])
         if w.get("paliers_rachat"):
             paliers = ", ".join(
-                f"{p.get('prix')}€ ({p.get('tranche')})"
+                f"{p.get('prix')}€ ({p.get('quantite') or p.get('tranche') or '?'})"
                 for p in w["paliers_rachat"]
             )
             description_parts.append("Paliers : " + paliers)
@@ -144,8 +144,8 @@ def construire_calendrier(depot: Depot) -> Calendar:
             rappel_jours=RAPPEL_ECHEANCE_WATCHLIST_JOURS,
         )
 
-    # 3. Ordres actifs (achat ou vente) en attente
-    for w in depot.charger("watchlist"):
+    # 3. Ordres actifs (achat ou vente) en attente (portés par le titre)
+    for w in depot.charger("titres"):
         for ordre in w.get("ordres_actifs") or []:
             if ordre.get("statut") != "en_attente":
                 continue

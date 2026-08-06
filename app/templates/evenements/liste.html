@@ -22,7 +22,7 @@
     <ul>
       <li><strong>Événements (ici)</strong> — tout ce qui doit tomber dans ton agenda. Les rappels DCA (préfixe <code>e-dca-</code>) viennent de Programmes ; le bouton « ✓ Honorer » pré-remplit un mouvement d'achat avec le montant cible.</li>
       <li><strong><a href="{{ url_for('virements_programmes.liste') }}">Programmes</a></strong> — pour créer ou modifier le DCA qui génère les rappels.</li>
-      <li><strong><a href="{{ url_for('watchlist.liste') }}">Watchlist</a></strong> — pour les ordres limite ponctuels (qui n'ont pas leur propre rappel auto, mais dont la validité apparaît dans l'agenda).</li>
+      <li><strong><a href="{{ url_for('titres.liste') }}">Titres</a></strong> — pour les ordres limite ponctuels, portés par chaque titre (qui n'ont pas leur propre rappel auto, mais dont la validité apparaît dans l'agenda).</li>
     </ul>
     <p class="muted">Tous ces événements alimentent le <a href="{{ url_for('calendrier_ics') }}"><code>calendrier.ics</code></a> à intégrer dans ton agenda.</p>
   </div>

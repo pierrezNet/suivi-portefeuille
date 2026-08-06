@@ -99,7 +99,12 @@ def depot(tmp_path: Path) -> Depot:
     d.enregistrer("comptes", [{"id": "pea-bd", "nom": "PEA BD", "type": "PEA"}])
     d.enregistrer("titres", [
         {"id": "dsy", "ticker": "DSY", "nom": "Dassault",
-         "cours_jour_eur": "18", "date_cours_jour": "2026-07-08"},
+         "cours_jour_eur": "18", "date_cours_jour": "2026-07-08",
+         "compte_cible": "pea-bd",
+         "ordres_actifs": [{
+             "id": "o1", "prix_limite": "17", "quantite": 5, "sens": "achat",
+             "statut": "en_attente",
+         }]},
     ])
     d.enregistrer("mouvements", [
         {"id": "m1", "type": "alimentation_cash", "compte_id": "pea-bd",
@@ -108,14 +113,7 @@ def depot(tmp_path: Path) -> Depot:
          "date": "2026-06-24", "quantite": "5", "prix_unitaire": "18.394",
          "frais_courtage": "0"},   # 5 × 18.394 = 91.97 → solde 308.03
     ])
-    d.enregistrer("watchlist", [{
-        "nom": "Dassault", "ticker": "DSY", "titre_id": "dsy",
-        "compte_cible": "pea-bd",
-        "ordres_actifs": [{
-            "id": "o1", "prix_limite": "17", "quantite": 5, "sens": "achat",
-            "statut": "en_attente", "validite": "2026-07-31",
-        }],
-    }])
+    d.enregistrer("watchlist", [])
     d.enregistrer("evenements", [])
     d.enregistrer("virements_programmes", [])
     return d

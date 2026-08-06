@@ -14,15 +14,15 @@
           <span class="logo-mark">€</span> Suivi Portefeuille
         </a>
         <nav class="nav-main">
-          <a href="{{ url_for('dashboard.index') }}">Tableau de bord</a>
-          <a href="{{ url_for('mouvements.liste') }}">Mouvements</a>
-          <a href="{{ url_for('virements_programmes.liste') }}">Programmes</a>
-          <a href="{{ url_for('titres.liste') }}">Titres</a>
-          <a href="{{ url_for('watchlist.liste') }}">Watchlist</a>
-          <a href="{{ url_for('evenements.liste') }}">Événements</a>
-          <a href="{{ url_for('predictions.liste') }}">Prédictions</a>
-          <a href="{{ url_for('recap_fiscal.index') }}">Récap fiscal</a>
-          <a href="{{ url_for('reglages.index') }}">Réglages</a>
+          {% set bp = request.blueprint %}
+          <a href="{{ url_for('dashboard.index') }}" class="{{ 'nav-actif' if bp == 'dashboard' }}">Tableau de bord</a>
+          <a href="{{ url_for('mouvements.liste') }}" class="{{ 'nav-actif' if bp == 'mouvements' }}">Mouvements</a>
+          <a href="{{ url_for('virements_programmes.liste') }}" class="{{ 'nav-actif' if bp == 'virements_programmes' }}">Programmes</a>
+          <a href="{{ url_for('titres.liste') }}" class="{{ 'nav-actif' if bp in ('titres', 'watchlist') }}">Titres</a>
+          <a href="{{ url_for('evenements.liste') }}" class="{{ 'nav-actif' if bp == 'evenements' }}">Événements</a>
+          <a href="{{ url_for('predictions.liste') }}" class="{{ 'nav-actif' if bp == 'predictions' }}">Prédictions</a>
+          <a href="{{ url_for('recap_fiscal.index') }}" class="{{ 'nav-actif' if bp == 'recap_fiscal' }}">Récap fiscal</a>
+          <a href="{{ url_for('reglages.index') }}" class="{{ 'nav-actif' if bp == 'reglages' }}">Réglages</a>
         </nav>
       </div>
     </header>

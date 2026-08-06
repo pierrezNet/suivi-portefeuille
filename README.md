@@ -18,7 +18,7 @@ Remplacer le fichier tableur (LibreOffice Calc) par une application web personne
 
 1. **Journal d'investisseur** : enregistrer chaque opération (achat, vente, alimentation, dividende, frais) au fil de l'eau, garder une trace des décisions et de leurs justifications.
 2. **Préparation fiscale** : calculer les plus-values réalisées sur CTO selon la méthode FIFO, générer les éléments nécessaires au formulaire 2074.
-3. **Bibliothèque structurée** : documenter les thèses long terme, les signaux moyen terme, les watchlists et les événements à surveiller.
+3. **Bibliothèque structurée** : documenter les thèses long terme, les signaux moyen terme, le suivi de chaque titre (statut, priorité, plan de rachat) et les événements à surveiller.
 
 ### Trois principes fondamentaux
 
@@ -30,31 +30,36 @@ Remplacer le fichier tableur (LibreOffice Calc) par une application web personne
 
 ---
 
-## 🔀 Watchlist vs Programmes vs Événements — quand utiliser quoi ?
+## 🔀 Titres vs Programmes vs Événements — quand utiliser quoi ?
 
 Trois modules couvrent des intentions différentes mais qui peuvent se chevaucher
 sur un même titre. Sans clarté sur la frontière, on duplique vite la même info à
 deux endroits. Règle simple : **l'intention dicte le module**, pas le titre.
 
+> ℹ️ **L'ancienne « Watchlist » a été fusionnée dans les Titres.** Le suivi
+> (statut, priorité, ordre limite ponctuel, plan de rachat) vit désormais
+> directement sur la fiche de chaque titre. Un seul onglet **Titres** liste tout
+> — valeurs détenues et surveillées — avec un panneau d'actions par ligne.
+
 | Module | Intention | Cas typique | Génère automatiquement |
 |---|---|---|---|
-| **Watchlist** | Surveiller et **agir ponctuellement** | « Si Infineon ≤ 60 €, j'achète 2 actions une seule fois » | Le bouton « ✓ Exécuté » crée le mouvement d'achat correspondant. |
+| **Titres** | Décrire et **suivre** une valeur : thèse, statut, priorité, **ordre limite ponctuel**, **plan de rachat** | « Si Infineon ≤ 60 €, j'achète 2 actions une seule fois » → ordre limite posé sur la fiche | Le bouton « ✓ Exécuter » crée le mouvement d'achat correspondant. |
 | **Programmes** | Engagements **récurrents** (sans ou avec titre) | Virement permanent 100 €/mois · DCA Amundi 80 €/mois | Mouvement `alimentation_cash` auto si pas de titre · rappel d'événement DCA à honorer manuellement si titre. |
 | **Événements** | Agenda des **dates importantes** | Publication T1, détachement dividende, AG · rappel DCA à honorer | Aucun (les rappels DCA viennent de Programmes). Alimente le calendrier ICS. |
 
 **Comment trancher en cas de doute** :
 
-- **C'est un achat unique chez le broker à un prix défini ?** → Watchlist (ordre limite).
+- **C'est un achat unique chez le broker à un prix défini ?** → un **ordre limite** sur la fiche du titre.
 - **C'est récurrent (mensuel, trimestriel) sans intervention manuelle ?** → Programmes.
 - **C'est une date à laquelle il faut faire quelque chose / regarder un résultat ?** → Événement (ou laissé à Programmes si c'est un DCA récurrent).
 
-**Le piège classique** : un même titre Amundi peut se retrouver à la fois en Watchlist
-(pour décrire la thèse long terme et les paliers de renforcement) ET en Programmes
-(pour exécuter le DCA mensuel automatique). C'est légitime — les deux ne se marchent
-pas sur les pieds. Watchlist = la **réflexion**, Programmes = l'**exécution**.
+**Le piège classique** : un même titre Amundi porte à la fois son suivi dans les
+**Titres** (thèse long terme, plan de rachat) ET un **Programme** (pour exécuter le
+DCA mensuel automatique). C'est légitime — les deux ne se marchent pas sur les
+pieds. Titres = la **réflexion**, Programmes = l'**exécution**.
 
 Une bulle d'aide repliable « 💡 Quand utiliser cette page ? » est présente en haut
-de chacune des trois pages dans l'application — n'hésite pas à l'ouvrir si tu hésites.
+des pages concernées dans l'application — n'hésite pas à l'ouvrir si tu hésites.
 
 ---
 
@@ -66,7 +71,7 @@ toute la doc.
 
 | Surface | Où | Quoi | Quand |
 |---|---|---|---|
-| **App locale (édition)** | Navigateur sur le PC → `http://127.0.0.1:5000` | Saisie des mouvements, édition des thèses, watchlist, événements | À chaque opération sur Bourse Direct |
+| **App locale (édition)** | Navigateur sur le PC → `http://127.0.0.1:5000` | Saisie des mouvements, édition des thèses, suivi des titres, événements | À chaque opération sur Bourse Direct |
 | **App locale (consultation)** | Même URL | Dashboard, soldes recalculés, récap fiscal, calendrier `/calendrier.ics` | À la demande, depuis le PC |
 | **Dashboard mobile chiffré** | URL GitHub Pages, en read-only | Vue d'ensemble portefeuille, plus-values, événements à venir | À la demande, depuis le smartphone |
 
@@ -80,8 +85,8 @@ toute la doc.
 - **Mensuel** (10 min) → contrôler que les **soldes cash recalculés** et le
   **PRU par titre** correspondent à ceux affichés par Bourse Direct. Tout
   écart = un mouvement oublié.
-- **Trimestriel** (30 min) → relire et mettre à jour les **thèses LT**, la
-  **watchlist**, les **paliers de rachat** ; archiver les événements passés.
+- **Trimestriel** (30 min) → relire et mettre à jour les **thèses LT**, le
+  **suivi des titres** (statut, priorité), les **paliers de rachat** ; archiver les événements passés.
 - **Annuel — printemps** (1 h) → générer le **récap fiscal** de l'année N-1,
   reporter les chiffres sur le formulaire 2074 ; sauvegarder l'export.
 - **En continu** → s'abonner depuis GNOME Calendar / Thunderbird à
@@ -135,7 +140,7 @@ C'est tout. Pas besoin de plus pour une V1 fonctionnelle.
 │   │   ├── titres.py                # CRUD titres et thèses LT
 │   │   ├── mouvements.py            # Achats, ventes, cash, dividendes
 │   │   ├── notes_titres.py          # Journal de notes versionnées par titre
-│   │   ├── watchlist.py             # Titres surveillés, paliers de rachat
+│   │   ├── watchlist.py             # Compat (fusionnée dans Titres) + endpoint .ics
 │   │   ├── evenements.py            # Événements + endpoint .ics
 │   │   ├── virements_programmes.py  # Alimentations récurrentes (DCA)
 │   │   └── recap_fiscal.py          # Récapitulatifs annuels (CTO/PEA)
@@ -145,9 +150,10 @@ C'est tout. Pas besoin de plus pour une V1 fonctionnelle.
 │   │   ├── plus_values.py           # Plus-values réalisées
 │   │   ├── soldes.py                # Reconstitution des soldes cash
 │   │   ├── mouvements.py            # Validation + persistance mouvements
-│   │   ├── titres.py                # Logique titres
+│   │   ├── titres.py                # Logique titres + suivi (statut, ordres, paliers)
+│   │   ├── suivi.py                 # Helpers de suivi partagés (ordres, paliers, réserve cash)
 │   │   ├── notes_titres.py          # Versioning des notes
-│   │   ├── watchlist.py             # Logique watchlist
+│   │   ├── watchlist.py             # Compat — suivi fusionné dans titres
 │   │   ├── evenements.py            # Logique événements
 │   │   ├── virements_programmes.py  # Rattrapage des virements récurrents
 │   │   ├── ics_export.py            # Génération iCalendar
@@ -159,7 +165,7 @@ C'est tout. Pas besoin de plus pour une V1 fonctionnelle.
 │   │   ├── base.html
 │   │   ├── dashboard.html
 │   │   ├── comptes/  titres/  mouvements/  notes_titres/
-│   │   ├── watchlist/  evenements/  virements_programmes/
+│   │   ├── evenements/  virements_programmes/
 │   │   └── recap_fiscal/
 │   └── static/css/  static/js/
 ├── data/                            # Source de vérité — JAMAIS versionnée
@@ -167,13 +173,13 @@ C'est tout. Pas besoin de plus pour une V1 fonctionnelle.
 │   ├── titres.json
 │   ├── mouvements.json
 │   ├── notes_titres.json
-│   ├── watchlist.json
+│   ├── watchlist.json               # historique (suivi fusionné dans titres.json)
 │   ├── evenements.json
 │   └── virements_programmes.json
 ├── tests/                           # pytest (1 fichier par service)
 │   ├── test_pru.py  test_plus_values.py  test_soldes.py
 │   ├── test_fiscal.py  test_ics_export.py  test_chiffrement.py
-│   ├── test_titres.py  test_notes_titres.py  test_watchlist.py
+│   ├── test_titres.py  test_notes_titres.py  test_titres_suivi.py
 │   ├── test_virements_programmes.py  test_ordres_actifs.py
 │   ├── test_yahoo.py  test_publier_dashboard.py
 │   └── conftest.py
@@ -357,9 +363,13 @@ Lors d'une vente, l'application calcule **automatiquement** :
 
 Ce détail est **stocké de façon immuable** au moment de la vente pour garantir la traçabilité fiscale, même si tu corriges un achat plus tard.
 
-### `data/watchlist.json`
+### `data/watchlist.json` *(hérité)*
 
-Titres surveillés mais **pas encore détenus**, ou décisions à mûrir.
+> ⚠️ **Fusionné dans `titres.json`.** Le suivi (statut, priorité, `compte_cible`,
+> `paliers_rachat`, `ordres_actifs`, `echeance_abandon`, `cible_totale`,
+> `notes_suivi`) est désormais porté par chaque **titre**. Ce fichier n'est plus
+> lu que pour l'historique / rollback ; la migration de schéma v3 a recopié son
+> contenu sur les titres au démarrage. Format historique conservé ci-dessous.
 
 ```json
 {

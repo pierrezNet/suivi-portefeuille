@@ -161,7 +161,15 @@ def liste():
 def creer():
     depot = current_app.config["DEPOT"]
     erreurs: dict[str, str] = {}
-    donnees = dict(request.form) if request.method == "POST" else {}
+    if request.method == "POST":
+        donnees = dict(request.form)
+    else:
+        # Pré-remplissage depuis la liste-pivot des titres (« Ajouter à un
+        # programme »), via query params.
+        donnees = {
+            k: v for k, v in request.args.items()
+            if k in ("titre_id", "compte_id", "montant", "periodicite") and v
+        }
     if request.method == "POST":
         try:
             vp = svc.creer(depot, donnees)

@@ -358,17 +358,17 @@ def creer(depot: Depot, type_: str, donnees: dict) -> dict:
 
 
 def _basculer_watchlist_si_achat(depot: Depot, mouvement: dict) -> None:
-    """Si le mouvement est un achat lié à un titre, fait passer les watch
-    `actif` correspondantes en `renforcement`. Import local pour éviter
-    une dépendance circulaire entre services."""
+    """Si le mouvement est un achat lié à un titre, fait passer le titre d'un
+    statut d'avant-achat (`veille`/`achat_souhaite`) à `conservation`. Import
+    local pour éviter une dépendance circulaire entre services."""
     if mouvement.get("type") != "achat":
         return
     titre_id = mouvement.get("titre_id")
     if not titre_id:
         return
-    from app.services.watchlist import basculer_actif_vers_renforcement
+    from app.services.titres import basculer_apres_achat
 
-    basculer_actif_vers_renforcement(depot, titre_id)
+    basculer_apres_achat(depot, titre_id)
 
 
 def trouver(depot: Depot, mouvement_id: str) -> dict | None:

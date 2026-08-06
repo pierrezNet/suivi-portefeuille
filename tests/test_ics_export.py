@@ -14,6 +14,12 @@ def depot(tmp_path: Path) -> Depot:
     d = Depot(tmp_path)
     d.enregistrer("titres", [
         {"id": "stm", "ticker": "STMPA", "nom": "STMicro"},
+        {"id": "soi", "nom": "Soitec",
+         "echeance_abandon": "2027-05-06",
+         "these_lt": "Vendu sur bulle, racheter en correction.",
+         "paliers_rachat": [
+             {"prix": "80", "tranche": "1/3", "commentaire": "Premier"},
+         ]},
     ])
     d.enregistrer("evenements", [
         {"id": "e-1", "type": "publication_resultats", "titre_id": "stm",
@@ -23,14 +29,7 @@ def depot(tmp_path: Path) -> Depot:
          "date": "2027-05-06", "libelle": "Réévaluer thèse Soitec",
          "notes": ""},
     ])
-    d.enregistrer("watchlist", [
-        {"id": "w-soi", "nom": "Soitec",
-         "echeance_abandon": "2027-05-06",
-         "these_lt": "Vendu sur bulle, racheter en correction.",
-         "paliers_rachat": [
-             {"prix": "80", "tranche": "1/3", "commentaire": "Premier"},
-         ]},
-    ])
+    d.enregistrer("watchlist", [])
     d.enregistrer("comptes", [])
     d.enregistrer("mouvements", [])
     return d
@@ -146,15 +145,15 @@ def test_valarm_echeance_watchlist_1_jour(depot):
 def test_valarm_ordre_limite_2_jours(tmp_path):
     """Un ordre limite watchlist en attente a une alarme à T-2 jours."""
     d = Depot(tmp_path)
-    d.enregistrer("titres", [{"id": "ifx", "ticker": "IFX", "nom": "Infineon"}])
-    d.enregistrer("evenements", [])
-    d.enregistrer("watchlist", [{
-        "id": "w-ifx", "ticker": "IFX", "nom": "Infineon",
+    d.enregistrer("titres", [{
+        "id": "ifx", "ticker": "IFX", "nom": "Infineon",
         "ordres_actifs": [{
             "id": "o-1", "prix_limite": "60", "quantite": 2,
             "statut": "en_attente", "validite": "2026-08-01",
         }],
     }])
+    d.enregistrer("evenements", [])
+    d.enregistrer("watchlist", [])
     d.enregistrer("comptes", [])
     d.enregistrer("mouvements", [])
 

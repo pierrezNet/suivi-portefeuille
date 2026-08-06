@@ -1,12 +1,14 @@
 {% extends "base.html" %}
+{% from "_fieldsets_suivi.html" import paliers_fieldset, ordre_fieldset %}
 
 {% block title %}Titres — Suivi Portefeuille{% endblock %}
 
 {% block content %}
+{% set retour = url_for('titres.liste') %}
 <section class="page-header">
   <div>
-    <h1>Catalogue des titres</h1>
-    <p class="muted">Toutes les valeurs connues — détenues ou non.</p>
+    <h1>Titres</h1>
+    <p class="muted">Tes valeurs — détenues et surveillées. Clique une ligne pour agir : plan, ordre, DCA, prédiction…</p>
   </div>
   <div>
     <a class="btn" href="{{ url_for('titres.importer_xlsx') }}" title="Importer les cours du jour depuis l'export xlsx Bourse Direct">⬆ Importer cours (xlsx)</a>
@@ -14,33 +16,79 @@
   </div>
 </section>
 
+<form method="get" class="filtres-bar {% if nb_filtres_actifs %}filtres-bar--actifs{% endif %}">
+  <input type="hidden" name="f" value="1">
+  <label>
+    <span>Statut</span>
+    <select name="statut" class="{% if filtres.statut %}filtre-actif{% endif %}">
+      <option value="">— Tous —</option>
+      {% for s in statuts %}
+        <option value="{{ s }}" {% if filtres.statut == s %}selected{% endif %}>{{ s|replace('_', ' ') }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>
+    <span>Priorité</span>
+    <select name="priorite" class="{% if filtres.priorite %}filtre-actif{% endif %}">
+      <option value="">— Toutes —</option>
+      {% for p in priorites %}
+        <option value="{{ p }}" {% if filtres.priorite == p %}selected{% endif %}>{{ p }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="check-inclure-passe">
+    <input type="checkbox" name="inclure_abandonnes" value="1" {% if inclure_abandonnes %}checked{% endif %}>
+    <span>Inclure les abandonnés</span>
+  </label>
+  <div class="filtres-actions">
+    <button type="submit" class="btn" title="Filtrer" aria-label="Filtrer">
+      <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false" style="vertical-align:-2px"><path fill="currentColor" d="M1.5 1.5A.5.5 0 0 1 2 1h12a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.128.334L10 8.692V13.5a.5.5 0 0 1-.342.474l-3 1A.5.5 0 0 1 6 14.5V8.692L1.628 3.834A.5.5 0 0 1 1.5 3.5v-2z"/></svg>
+    </button>
+    {% if nb_filtres_actifs %}<a class="filtres-badge" href="{{ url_for('titres.liste', reinit=1) }}"
+       title="Supprimer les filtres">✕ {{ nb_filtres_actifs }} filtre{{ 's' if nb_filtres_actifs > 1 }} actif{{ 's' if nb_filtres_actifs > 1 }}</a>{% endif %}
+  </div>
+</form>
+
+{% if nb_abandonnes_masques %}
+  <p class="muted bandeau-info">
+    🗄️ {{ nb_abandonnes_masques }} titre{{ 's' if nb_abandonnes_masques > 1 }} abandonné{{ 's' if nb_abandonnes_masques > 1 }} masqué{{ 's' if nb_abandonnes_masques > 1 }}.
+    <a href="{{ url_for('titres.liste', f=1, inclure_abandonnes=1) }}">Les afficher aussi →</a>
+  </p>
+{% endif %}
+
 {% if titres %}
-<table class="table-titres">
+<table class="table-titres table-pivot">
   <thead>
     <tr>
       <th>Ticker</th>
       <th>Nom</th>
-      <th>Marché</th>
-      <th>Devise</th>
-      <th>Secteur</th>
+      <th>Statut</th>
+      <th>Priorité</th>
       <th class="num">Position</th>
       <th class="num">Cours du jour</th>
       <th class="num">PV cumulée</th>
-      <th>Activité</th>
+      <th>Suivi</th>
     </tr>
   </thead>
   <tbody>
     {% for t in titres %}
       {% set position = positions_par_titre.get(t.id, 0) %}
-      <tr>
-        <td><a href="{{ url_for('titres.detail', titre_id=t.id) }}"><code>{{ t.ticker }}</code></a></td>
+      {% set pv = pv_par_titre.get(t.id) %}
+      {% set actif = ordre_actif_par_titre.get(t.id) %}
+      <tr class="titre-ligne" data-cible="panneau-{{ t.id }}" title="Cliquer pour les actions">
+        <td><a href="{{ url_for('titres.detail', titre_id=t.id) }}">{% if t.ticker %}<code>{{ t.ticker }}</code>{% else %}<span class="muted">—</span>{% endif %}</a></td>
         <td><a href="{{ url_for('titres.detail', titre_id=t.id) }}">{{ t.nom }}</a></td>
-        <td>{{ t.marche or '—' }}</td>
-        <td>{{ t.devise or '—' }}</td>
-        <td>{{ t.secteur or '—' }}</td>
+        <td><span class="pill pill-statut pill-statut-{{ t.statut }}">{{ (t.statut or 'veille')|replace('_', ' ') }}</span></td>
+        <td>
+          {% if t.statut == 'abandonne' %}
+            <span class="muted">----</span>
+          {% else %}
+            <span class="pill pill-priorite-{{ t.priorite or 'moyenne' }}">{{ t.priorite or 'moyenne' }}</span>
+          {% endif %}
+        </td>
         <td class="num">
           {% if position > 0 %}
-            <strong>{{ position }}</strong>
+            <strong>{{ position }}</strong> <span class="tag-detenu" title="Titre détenu">détenu</span>
           {% else %}
             <span class="muted">—</span>
           {% endif %}
@@ -54,22 +102,72 @@
           {% endif %}
         </td>
         <td class="num">
-          {% set pv = pv_par_titre.get(t.id) %}
           {% if pv is not none and pv != 0 %}
-            <span class="{% if pv >= 0 %}pv-positive{% else %}pv-negative{% endif %}">
-              {{ pv|euros }}
-            </span>
+            <span class="{% if pv >= 0 %}pv-positive{% else %}pv-negative{% endif %}">{{ pv|euros }}</span>
           {% else %}
             <span class="muted">—</span>
           {% endif %}
         </td>
         <td>
-          {% set act = activite_par_titre.get(t.id) %}
-          {% if act %}
-            <span class="muted">{{ act.nb }} note{% if act.nb > 1 %}s{% endif %} · dernière {{ act.derniere_date|date_fr }}</span>
-          {% else %}
-            <span class="muted">—</span>
-          {% endif %}
+          {% if actif %}<span class="pill" title="Ordre limite actif">📋 {{ 'vente' if actif.sens == 'vente' else 'achat' }} {{ actif.prix_limite }}</span>{% endif %}
+          {% if t.echeance_abandon %}<span class="muted" title="Réévaluer avant">⏳ {{ t.echeance_abandon|date_courte }}</span>{% endif %}
+          {% if not actif and not t.echeance_abandon %}<span class="muted">▾</span>{% endif %}
+        </td>
+      </tr>
+      <tr class="titre-panneau" id="panneau-{{ t.id }}" hidden>
+        <td colspan="8">
+          <div class="panneau-actions">
+            <div class="panneau-liens">
+              <a class="btn" href="{{ url_for('titres.detail', titre_id=t.id) }}">📄 Ouvrir la fiche</a>
+              <a class="btn" href="{{ url_for('virements_programmes.creer', titre_id=t.id) }}">🔁 Ajouter à un programme (DCA)</a>
+              <a class="btn" href="{{ url_for('predictions.nouvelle', titre_id=t.id) }}">🔮 Faire une prédiction</a>
+              <a class="btn" href="{{ url_for('titres.detail', titre_id=t.id) }}#journal">📝 Ajouter une note</a>
+              <form method="post" action="{{ url_for('titres.actualiser_yahoo', titre_id=t.id) }}" style="display:inline">
+                <input type="hidden" name="next" value="{{ retour }}">
+                <button type="submit" class="btn" title="Rafraîchir les chiffres depuis Yahoo Finance">↻ Actualiser Yahoo</button>
+              </form>
+            </div>
+
+            {% if actif %}
+            <div class="panneau-ordre-actif">
+              <strong>📋 Ordre actif :</strong>
+              <span class="pill">{{ 'Vente' if actif.sens == 'vente' else 'Achat' }}</span>
+              {{ actif.prix_limite }} {{ '$' if (t.devise or 'EUR') == 'USD' else '€' }} × {{ actif.quantite|quantite }}
+              {% if actif.validite %}<span class="muted">— validité {{ actif.validite|date_courte }}</span>{% endif %}
+              <a class="btn btn-primary btn-sm"
+                 title="Marquer exécuté (crée le mouvement de {{ 'vente' if actif.sens == 'vente' else 'achat' }})"
+                 href="{{ url_for('mouvements.creer', type_mouvement=(actif.sens or 'achat'),
+                        source_ordre_titre_id=t.id, source_ordre_id=actif.id,
+                        compte_id=t.compte_cible, titre_id=t.id,
+                        quantite=actif.quantite, prix_unitaire=actif.prix_limite,
+                        prix_unitaire_vente=actif.prix_limite, devise=t.devise) }}">✓ Exécuter</a>
+              <form method="post" style="display:inline"
+                    action="{{ url_for('titres.annuler_ordre', titre_id=t.id, ordre_id=actif.id) }}"
+                    onsubmit="return confirm('Annuler cet ordre ?');">
+                <input type="hidden" name="next" value="{{ retour }}">
+                <button type="submit" class="btn-icone" title="Annuler l'ordre">✗ Annuler</button>
+              </form>
+            </div>
+            {% endif %}
+
+            <details class="panneau-form">
+              <summary>📋 {{ 'Modifier' if actif else 'Poser' }} un ordre limite</summary>
+              <form method="post" action="{{ url_for('titres.enregistrer_ordre', titre_id=t.id) }}">
+                <input type="hidden" name="next" value="{{ retour }}">
+                {{ ordre_fieldset(form_suivi.get(t.id, {})) }}
+                <button type="submit" class="btn btn-primary">Enregistrer l'ordre</button>
+              </form>
+            </details>
+
+            <details class="panneau-form">
+              <summary>🎯 Générer un plan de rachat</summary>
+              <form method="post" action="{{ url_for('titres.enregistrer_paliers', titre_id=t.id) }}">
+                <input type="hidden" name="next" value="{{ retour }}">
+                {{ paliers_fieldset(form_suivi.get(t.id, {})) }}
+                <button type="submit" class="btn btn-primary">Enregistrer le plan</button>
+              </form>
+            </details>
+          </div>
         </td>
       </tr>
     {% endfor %}
@@ -78,7 +176,7 @@
 {% else %}
 <div class="empty-state">
   <span class="empty-icon">📊</span>
-  <h3>Catalogue vide</h3>
+  <h3>Aucun titre</h3>
   <p>Ajoute les titres que tu détiens ou que tu surveilles, avec leurs thèses long terme.</p>
   <a class="btn btn-primary" href="{{ url_for('titres.creer') }}">+ Nouveau titre</a>
 </div>

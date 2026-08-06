@@ -475,14 +475,14 @@
       {% endif %}
     </section>
 
-    {# Watchlist priorité haute #}
+    {# Titres suivis en priorité haute #}
     <section class="bloc">
-      <h2>🎯 Watchlist — priorité haute</h2>
+      <h2>🎯 Suivi — priorité haute</h2>
       {% if watchlist_haute %}
         <ul class="watchlist-aside">
           {% for w in watchlist_haute %}
             <li>
-              <a href="{{ url_for('watchlist.editer', watch_id=w.id) }}">
+              <a href="{{ url_for('titres.detail', titre_id=w.id) }}">
                 {% if w.ticker %}<code>{{ w.ticker }}</code>{% endif %}
                 <strong>{{ w.nom or w.ticker }}</strong>
               </a>
@@ -490,9 +490,9 @@
             </li>
           {% endfor %}
         </ul>
-        <p><a class="btn-link" href="{{ url_for('watchlist.liste') }}">Toute la watchlist →</a></p>
+        <p><a class="btn-link" href="{{ url_for('titres.liste', f=1, priorite='haute') }}">Tous les titres prioritaires →</a></p>
       {% else %}
-        <p class="muted">Aucun élément en priorité haute.</p>
+        <p class="muted">Aucun titre en priorité haute.</p>
       {% endif %}
     </section>
   </aside>

@@ -28,7 +28,7 @@
     <p><strong>Tu es sur Programmes :</strong> pour automatiser un engagement <strong>récurrent</strong> (virement bancaire permanent ou DCA broker).</p>
     <ul>
       <li><strong>Programmes (ici)</strong> — sans titre = <em>alimentation cash</em> auto. Avec titre = <em>DCA</em> qui génère un rappel d'événement à honorer après exécution broker. Le rattrapage tourne à chaque ouverture du dashboard.</li>
-      <li><strong><a href="{{ url_for('watchlist.liste') }}">Watchlist</a></strong> — pour les ordres limite <em>ponctuels</em> chez le broker (un seul achat à un prix donné), pas récurrents.</li>
+      <li><strong><a href="{{ url_for('titres.liste') }}">Titres</a></strong> — pour les ordres limite <em>ponctuels</em> chez le broker (un seul achat à un prix donné), portés par le titre, pas récurrents.</li>
       <li><strong><a href="{{ url_for('evenements.liste') }}">Événements</a></strong> — c'est là que tu cliques « ✓ Honorer » pour chaque rappel DCA après ton ordre Amundi.</li>
     </ul>
   </div>

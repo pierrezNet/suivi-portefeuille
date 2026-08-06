@@ -18,9 +18,9 @@ from flask import (
 
 from datetime import date as _date
 
+from app.routes._filtres import resoudre_filtres
 from app.services import notes_titres as svc_notes
 from app.services import titres as svc
-from app.services import watchlist as svc_watchlist
 from app.services.categories import CATEGORIES
 from app.services.etf_amundi import (
     ETF_AMUNDI,
@@ -46,9 +46,32 @@ ZERO = Decimal("0")
 @bp.route("/", methods=["GET"])
 def liste():
     depot = current_app.config["DEPOT"]
+
+    # Filtres persistants (statut / priorité de suivi), comme les autres listes.
+    redir, vals, nb_filtres_actifs = resoudre_filtres(
+        "filtres_titres", "titres.liste",
+        ("statut", "priorite", "inclure_abandonnes"))
+    if redir:
+        return redir
+    inclure_abandonnes = vals["inclure_abandonnes"] == "1"
+
     titres = svc.lister(depot)
+    if vals["statut"]:
+        titres = [t for t in titres if t.get("statut") == vals["statut"]]
+    if vals["priorite"]:
+        titres = [t for t in titres if t.get("priorite") == vals["priorite"]]
+
+    # Par défaut, les titres abandonnés sont masqués (case « Inclure les
+    # abandonnés » décochée) — sauf si on filtre explicitement sur ce statut.
+    nb_abandonnes_masques = 0
+    if not inclure_abandonnes and vals["statut"] != "abandonne":
+        avant = len(titres)
+        titres = [t for t in titres if t.get("statut") != "abandonne"]
+        nb_abandonnes_masques = avant - len(titres)
+
     mouvements = depot.charger("mouvements")
     notes = depot.charger("notes_titres")
+    comptes = {c["id"]: c for c in depot.charger("comptes")}
 
     # Pré-calcul : positions agrégées + PV cumulée par titre
     positions_par_titre: dict[str, Decimal] = defaultdict(lambda: ZERO)
@@ -89,12 +112,49 @@ def liste():
         if (m.get("date") or "") > a["derniere_date"]:
             a["derniere_date"] = m["date"]
 
+    # Pré-remplissage des formulaires de suivi du panneau d'actions (ordre +
+    # plan de rachat) et repérage de l'ordre actif pour le bouton « Exécuter ».
+    form_suivi: dict[str, dict] = {}
+    ordre_actif_par_titre: dict[str, dict] = {}
+    for t in titres:
+        paliers = t.get("paliers_rachat") or []
+        actif = next(
+            (o for o in (t.get("ordres_actifs") or [])
+             if o.get("statut") == "en_attente"),
+            None,
+        )
+        if actif:
+            ordre_actif_par_titre[t["id"]] = actif
+        form_suivi[t["id"]] = {
+            "cible_totale": t.get("cible_totale", ""),
+            "paliers_prix": "\n".join(p.get("prix", "") for p in paliers),
+            "paliers_quantite": "\n".join(
+                p.get("quantite") or p.get("tranche") or "" for p in paliers),
+            "paliers_commentaire": "\n".join(p.get("commentaire", "") for p in paliers),
+            "ordre_sens": (actif or {}).get("sens", "achat"),
+            "ordre_prix": (actif or {}).get("prix_limite", ""),
+            "ordre_quantite": (actif or {}).get("quantite", ""),
+            "ordre_validite": (actif or {}).get("validite", ""),
+            "ordre_note": (actif or {}).get("note", ""),
+            "ordre_id": (actif or {}).get("id", ""),
+            "ordre_date_creation": (actif or {}).get("date_creation", ""),
+        }
+
     return render_template(
         "titres/liste.html",
         titres=titres,
         positions_par_titre=positions_par_titre,
         pv_par_titre=pv_par_titre,
         activite_par_titre=activite_par_titre,
+        comptes=comptes,
+        form_suivi=form_suivi,
+        ordre_actif_par_titre=ordre_actif_par_titre,
+        filtres={"statut": vals["statut"] or None, "priorite": vals["priorite"] or None},
+        nb_filtres_actifs=nb_filtres_actifs,
+        inclure_abandonnes=inclure_abandonnes,
+        nb_abandonnes_masques=nb_abandonnes_masques,
+        statuts=svc.STATUTS,
+        priorites=svc.PRIORITES,
     )
 
 
@@ -116,6 +176,9 @@ def creer():
         donnees=donnees,
         erreurs=erreurs,
         categories=CATEGORIES,
+        statuts=svc.STATUTS,
+        priorites=svc.PRIORITES,
+        comptes=depot.charger("comptes"),
     )
 
 
@@ -140,6 +203,7 @@ def detail(titre_id: str):
                 {"compte": compte, "quantite": q, "pru": pru}
             )
 
+    position_totale = sum((p["quantite"] for p in positions), ZERO)
     pv_titre = cumul_plus_values(tous_mvts, titre_id=titre_id)
 
     # Cumul dividendes nets reçus (en EUR si dispo, sinon brut)
@@ -164,18 +228,25 @@ def detail(titre_id: str):
         depot, titre_id=titre_id, date_debut=today_iso
     )
 
-    # Ordre(s) actif(s) lié(s) au titre — mêmes données que la watchlist.
-    watch_liee = svc_watchlist.trouver_watch_par_titre(depot, titre_id)
+    # Ordres actifs / plan de rachat : portés désormais par le titre lui-même.
     ordres_actifs = [
-        o for o in ((watch_liee.get("ordres_actifs") if watch_liee else None) or [])
+        o for o in (titre.get("ordres_actifs") or [])
         if o.get("statut") == "en_attente"
     ]
+    historique_ordres = sorted(
+        [o for o in (titre.get("ordres_actifs") or [])
+         if o.get("statut") != "en_attente"],
+        key=lambda o: o.get("date_creation", ""),
+        reverse=True,
+    )
     symbole = "$" if (titre.get("devise") or "EUR").upper() == "USD" else "€"
-    paliers = (watch_liee.get("paliers_rachat") if watch_liee else None) or []
-    paliers_txt = {
-        "prix": "\n".join(p.get("prix", "") for p in paliers),
-        "tranche": "\n".join(p.get("tranche", "") for p in paliers),
-        "commentaire": "\n".join(p.get("commentaire", "") for p in paliers),
+    paliers = titre.get("paliers_rachat") or []
+    plan_donnees = {
+        "cible_totale": titre.get("cible_totale", ""),
+        "paliers_prix": "\n".join(p.get("prix", "") for p in paliers),
+        "paliers_quantite": "\n".join(
+            p.get("quantite") or p.get("tranche") or "" for p in paliers),
+        "paliers_commentaire": "\n".join(p.get("commentaire", "") for p in paliers),
     }
 
     # Exposition réelle de l'indice (ETF Amundi synthétique) : lecture du cache
@@ -192,14 +263,15 @@ def detail(titre_id: str):
         etf_isin=etf_isin,
         etf_compo=etf_compo,
         etf_meta=etf_meta,
-        watch_liee=watch_liee,
         ordres_actifs=ordres_actifs,
+        historique_ordres=historique_ordres,
         symbole=symbole,
         paliers=paliers,
-        paliers_txt=paliers_txt,
+        plan_donnees=plan_donnees,
         mouvements=mouvements_titre,
         comptes=comptes,
         positions=positions,
+        position_totale=position_totale,
         pv_titre=pv_titre,
         dividendes_eur=dividendes_eur,
         nb_dividendes=nb_dividendes,
@@ -236,58 +308,73 @@ def rafraichir_etf(titre_id: str):
     return redirect(url_for("titres.detail", titre_id=titre_id))
 
 
-def _watch_du_titre(depot, titre: dict) -> dict:
-    """Watch liée au titre, ou une watch minimale créée à la volée (compte cible
-    = un compte où le titre a déjà une position, si disponible)."""
-    watch = svc_watchlist.trouver_watch_par_titre(depot, titre["id"])
-    if watch:
-        return watch
-    comptes_pos = [
-        m.get("compte_id") for m in depot.charger("mouvements")
-        if m.get("titre_id") == titre["id"] and m.get("compte_id")
-    ]
-    return svc_watchlist.creer(depot, {
-        "nom": titre.get("nom") or titre.get("ticker") or titre["id"],
-        "ticker": titre.get("ticker", ""),
-        "titre_id": titre["id"],
-        "devise": titre.get("devise", "EUR"),
-        "compte_cible": comptes_pos[0] if comptes_pos else "",
-        "statut": "actif",
-    })
+def _retour(titre_id: str) -> str:
+    """URL de retour après une action de suivi : `next` du formulaire s'il est
+    sûr (chemin local), sinon la fiche du titre. Permet aux boutons de la
+    liste-pivot de revenir à la liste, et à ceux de la fiche d'y rester."""
+    nxt = request.form.get("next")
+    if nxt and nxt.startswith("/") and not nxt.startswith("//"):
+        return nxt
+    return url_for("titres.detail", titre_id=titre_id)
 
 
 @bp.route("/<titre_id>/ordre", methods=["POST"])
 def enregistrer_ordre(titre_id: str):
-    """Pose / modifie / retire l'ordre actif d'un titre, depuis sa fiche (écrit
-    sur la watchlist liée ; en crée une minimale si le titre n'en a pas)."""
+    """Pose / modifie / retire l'ordre limite actif d'un titre (porté par le
+    titre lui-même)."""
     depot = current_app.config["DEPOT"]
     titre = svc.trouver(depot, titre_id)
     if not titre:
         abort(404)
-    watch = _watch_du_titre(depot, titre)
     try:
-        svc_watchlist.definir_ordre_actif(depot, watch["id"], dict(request.form))
+        svc.definir_ordre_actif(depot, titre_id, dict(request.form))
         flash("Ordre enregistré.", "success")
     except ValueError as e:
         flash(f"Ordre invalide : {e}", "error")
-    return redirect(url_for("titres.detail", titre_id=titre_id))
+    return redirect(_retour(titre_id))
 
 
 @bp.route("/<titre_id>/paliers", methods=["POST"])
 def enregistrer_paliers(titre_id: str):
-    """Met à jour le plan de rachat indicatif d'un titre, depuis sa fiche (écrit
-    sur la watchlist liée ; en crée une minimale si le titre n'en a pas)."""
+    """Met à jour le plan de rachat indicatif d'un titre (porté par le titre)."""
     depot = current_app.config["DEPOT"]
     titre = svc.trouver(depot, titre_id)
     if not titre:
         abort(404)
-    watch = _watch_du_titre(depot, titre)
     try:
-        svc_watchlist.definir_paliers(depot, watch["id"], dict(request.form))
+        svc.definir_paliers(depot, titre_id, dict(request.form))
         flash("Plan de rachat mis à jour.", "success")
     except ValueError as e:
         flash(f"Plan invalide : {e}", "error")
-    return redirect(url_for("titres.detail", titre_id=titre_id))
+    return redirect(_retour(titre_id))
+
+
+@bp.route("/<titre_id>/ordre/<ordre_id>/annuler", methods=["POST"])
+def annuler_ordre(titre_id: str, ordre_id: str):
+    """Marque un ordre comme annulé sans créer de mouvement."""
+    depot = current_app.config["DEPOT"]
+    if svc.marquer_ordre(depot, titre_id, ordre_id, "annule"):
+        flash("Ordre marqué comme annulé.", "success")
+    else:
+        flash("Ordre introuvable ou déjà annulé.", "error")
+    return redirect(_retour(titre_id))
+
+
+@bp.route("/<titre_id>/ordre/<ordre_id>/reactiver", methods=["POST"])
+def reactiver_ordre(titre_id: str, ordre_id: str):
+    """Réactive un ordre clos (un seul ordre actif à la fois)."""
+    depot = current_app.config["DEPOT"]
+    titre = svc.trouver(depot, titre_id)
+    if not titre:
+        abort(404)
+    if any(o.get("statut") == "en_attente" for o in (titre.get("ordres_actifs") or [])):
+        flash("Un ordre actif existe déjà pour ce titre — annule-le d'abord.", "error")
+        return redirect(_retour(titre_id))
+    if svc.marquer_ordre(depot, titre_id, ordre_id, "en_attente"):
+        flash("Ordre réactivé.", "success")
+    else:
+        flash("Ordre introuvable.", "error")
+    return redirect(_retour(titre_id))
 
 
 def _construire_journal(
@@ -382,6 +469,9 @@ def editer(titre_id: str):
         donnees=donnees,
         erreurs=erreurs,
         categories=CATEGORIES,
+        statuts=svc.STATUTS,
+        priorites=svc.PRIORITES,
+        comptes=depot.charger("comptes"),
     )
 
 

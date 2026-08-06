@@ -39,7 +39,7 @@ des frais. À chaque **vente**, l'app calcule automatiquement la **plus-value**
 (méthode FIFO) pour ta déclaration.
 
 ### Suivre les dates importantes
-- **Watchlist** : titres à surveiller, paliers de rachat, ordres limites.
+- **Titres** : une seule liste (détenus et surveillés) ; chaque titre porte son statut, sa priorité, son plan de rachat et un éventuel ordre limite.
 - **Programmes** : virements/DCA récurrents (rattrapés automatiquement).
 - **Événements** : publications de résultats, détachements de dividendes, AG…
   Tu peux t'**abonner au calendrier** depuis ton agenda (lien sur la page

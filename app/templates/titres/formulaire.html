@@ -35,48 +35,86 @@
 </section>
 
 <form method="post" class="formulaire">
-  {{ champ('Ticker', 'ticker', placeholder='STMPA', required=True) }}
+  {# --- Identité (minimum vital) --- #}
   {{ champ('Nom complet', 'nom', placeholder='STMicroelectronics N.V.', required=True) }}
-  {{ champ('ISIN', 'isin', placeholder='NL0000226223') }}
+  {{ champ('Ticker (vide si non coté / pré-IPO)', 'ticker', placeholder='ex : STMPA') }}
   {{ champ('Marché', 'marche', placeholder='Euronext Paris') }}
   {{ champ('Devise', 'devise', placeholder='EUR') }}
   {{ champ('Secteur', 'secteur', placeholder='Semi-conducteurs') }}
+
+  {# --- Suivi --- #}
   <label class="champ">
-    <span>Catégorie (allocation)</span>
-    <select name="categorie">
-      <option value="">— Auto (classée d'après le secteur) —</option>
-      {% for cat in categories or [] %}
-        <option value="{{ cat }}" {% if donnees.get('categorie') == cat %}selected{% endif %}>{{ cat }}</option>
+    <span>Statut</span>
+    <select name="statut">
+      {% for s in statuts or [] %}
+        <option value="{{ s }}" {% if (donnees.get('statut') or 'actif') == s %}selected{% endif %}>{{ s|replace('_', ' ') }}</option>
       {% endfor %}
     </select>
-    <small class="muted">Sert au camembert « Par catégorie ». Laisse « Auto » pour un classement automatique.</small>
   </label>
-  {{ champ('Site investisseurs', 'site_ir', type='url', placeholder='https://') }}
-  {{ champ('Horizon', 'horizon', placeholder='5-10 ans') }}
-  {{ champ('Ticker Yahoo (optionnel — override de l\'inférence)', 'ticker_yahoo', placeholder='CW8.PA · IFX.DE · NET — laisser vide pour auto') }}
-
   <label class="champ">
-    <span>Verse un dividende</span>
-    <select name="verse_dividende">
-      <option value=""></option>
-      <option value="oui" {% if donnees.get('verse_dividende') in (true, 'true', 'oui') %}selected{% endif %}>Oui</option>
-      <option value="non" {% if donnees.get('verse_dividende') in (false, 'false', 'non') %}selected{% endif %}>Non</option>
+    <span>Priorité</span>
+    <select name="priorite">
+      {% for p in priorites or [] %}
+        <option value="{{ p }}" {% if (donnees.get('priorite') or 'moyenne') == p %}selected{% endif %}>{{ p }}</option>
+      {% endfor %}
     </select>
   </label>
-
-  {{ champ('Fréquence dividende', 'frequence_dividende', placeholder='trimestriel / annuel') }}
-  {{ champ('Dividende / action', 'dividende_par_action', type='number', placeholder='0.36') }}
-  {{ champ('Cap. boursière (M)', 'cap_boursiere_m', type='number') }}
-  {{ champ('Dette nette (M)', 'dette_nette_m', type='number') }}
-  {{ champ('Valeur d\'entreprise (M)', 'valeur_entreprise_m', type='number') }}
+  <label class="champ">
+    <span>Compte cible</span>
+    <select name="compte_cible">
+      <option value="">— aucun —</option>
+      {% for c in comptes or [] %}
+        <option value="{{ c.id }}" {% if donnees.get('compte_cible') == c.id %}selected{% endif %}>{{ c.nom }}</option>
+      {% endfor %}
+    </select>
+    <small class="muted">Compte visé pour les ordres de ce titre.</small>
+  </label>
 
   {{ zone('Thèse long terme — vision, objectifs, conditions de sortie', 'these_lt',
          placeholder='Pourquoi je détiens ce titre sur 5-10 ans (avantage compétitif, exposition, conviction). Où je vois ce titre dans 5 ans. Qu\'est-ce qui me ferait sortir.',
          rows=6) }}
-  {{ zone('Signaux moyen terme à surveiller — positifs', 'signaux_mt_positifs',
-         placeholder='Drapeaux théoriques qui renforceraient la thèse (ex : « si NRR > 120 % »). Constats datés → journal de bord.', rows=3) }}
-  {{ zone('Signaux moyen terme à surveiller — négatifs', 'signaux_mt_negatifs',
-         placeholder='Drapeaux théoriques qui invalideraient la thèse (ex : « si payout > 100 % »). Constats datés → journal de bord.', rows=3) }}
+
+  {# --- Détails avancés (repliés à la création, remplis à la demande) --- #}
+  <details class="champ-large" {% if mode == 'edition' %}open{% endif %} style="margin:.4rem 0">
+    <summary style="cursor:pointer;color:var(--bleu-france)">Détails &amp; chiffres (facultatif — souvent remplis via « Actualiser Yahoo »)</summary>
+    <div style="margin-top:.5rem">
+      {{ champ('ISIN', 'isin', placeholder='NL0000226223') }}
+      <label class="champ">
+        <span>Catégorie (allocation)</span>
+        <select name="categorie">
+          <option value="">— Auto (classée d'après le secteur) —</option>
+          {% for cat in categories or [] %}
+            <option value="{{ cat }}" {% if donnees.get('categorie') == cat %}selected{% endif %}>{{ cat }}</option>
+          {% endfor %}
+        </select>
+        <small class="muted">Sert au camembert « Par catégorie ». Laisse « Auto » pour un classement automatique.</small>
+      </label>
+      {{ champ('Site investisseurs', 'site_ir', type='url', placeholder='https://') }}
+      {{ champ('Horizon', 'horizon', placeholder='5-10 ans') }}
+      {{ champ('Ticker Yahoo (optionnel — override de l\'inférence)', 'ticker_yahoo', placeholder='CW8.PA · IFX.DE · NET — laisser vide pour auto') }}
+      {{ champ('Échéance de réévaluation', 'echeance_abandon', type='date') }}
+
+      <label class="champ">
+        <span>Verse un dividende</span>
+        <select name="verse_dividende">
+          <option value=""></option>
+          <option value="oui" {% if donnees.get('verse_dividende') in (true, 'true', 'oui') %}selected{% endif %}>Oui</option>
+          <option value="non" {% if donnees.get('verse_dividende') in (false, 'false', 'non') %}selected{% endif %}>Non</option>
+        </select>
+      </label>
+      {{ champ('Fréquence dividende', 'frequence_dividende', placeholder='trimestriel / annuel') }}
+      {{ champ('Dividende / action', 'dividende_par_action', type='number', placeholder='0.36') }}
+      {{ champ('Cap. boursière (M)', 'cap_boursiere_m', type='number') }}
+      {{ champ('Dette nette (M)', 'dette_nette_m', type='number') }}
+      {{ champ('Valeur d\'entreprise (M)', 'valeur_entreprise_m', type='number') }}
+
+      {{ zone('Signaux moyen terme à surveiller — positifs', 'signaux_mt_positifs',
+             placeholder='Drapeaux théoriques qui renforceraient la thèse (ex : « si NRR > 120 % »). Constats datés → journal de bord.', rows=3) }}
+      {{ zone('Signaux moyen terme à surveiller — négatifs', 'signaux_mt_negatifs',
+             placeholder='Drapeaux théoriques qui invalideraient la thèse (ex : « si payout > 100 % »). Constats datés → journal de bord.', rows=3) }}
+      {{ zone('Notes de suivi', 'notes_suivi', placeholder='Notes libres sur le suivi de ce titre.', rows=2) }}
+    </div>
+  </details>
 
   <div class="formulaire-actions">
     <button type="submit" class="btn btn-primary">

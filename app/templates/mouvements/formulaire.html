@@ -15,7 +15,7 @@
 {%- endmacro %}
 
 {% block content %}
-{% if source_ordre_watch_id and source_ordre_id and source_watch %}
+{% if source_ordre_titre_id and source_ordre_id and source_watch %}
   <div class="bandeau-info">
     📋 Création depuis l'<strong>ordre actif</strong>
     {% if source_watch.ticker %}<code>{{ source_watch.ticker }}</code>{% endif %}
@@ -138,8 +138,8 @@
   {% if source_evenement_id %}
     <input type="hidden" name="source_evenement_id" value="{{ source_evenement_id }}">
   {% endif %}
-  {% if source_ordre_watch_id and source_ordre_id %}
-    <input type="hidden" name="source_ordre_watch_id" value="{{ source_ordre_watch_id }}">
+  {% if source_ordre_titre_id and source_ordre_id %}
+    <input type="hidden" name="source_ordre_titre_id" value="{{ source_ordre_titre_id }}">
     <input type="hidden" name="source_ordre_id" value="{{ source_ordre_id }}">
   {% endif %}
 

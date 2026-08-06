@@ -134,7 +134,7 @@ def creer(type_mouvement: str):
                 "prix_unitaire_vente",
                 "devise",
                 "date",
-                "source_ordre_watch_id",
+                "source_ordre_titre_id",
                 "source_ordre_id",
                 "source_evenement_id",
                 "montant_cible",
@@ -178,7 +178,7 @@ def creer(type_mouvement: str):
                     "date": sugg["date_cours"],
                 }
 
-    source_watch_id = donnees.get("source_ordre_watch_id")
+    source_titre_id = donnees.get("source_ordre_titre_id")
     source_ordre_id = donnees.get("source_ordre_id")
     source_evenement_id = donnees.get("source_evenement_id")
 
@@ -188,15 +188,15 @@ def creer(type_mouvement: str):
             # Si le mouvement provient d'un ordre (achat ou vente), marquer cet
             # ordre exécuté et le lier au mouvement créé.
             if (
-                source_watch_id
+                source_titre_id
                 and source_ordre_id
                 and type_mouvement in ("achat", "vente")
             ):
-                from app.services.watchlist import marquer_ordre
+                from app.services.titres import marquer_ordre
 
                 marquer_ordre(
                     depot,
-                    source_watch_id,
+                    source_titre_id,
                     source_ordre_id,
                     "execute",
                     mouvement_id=mouvement["id"],
@@ -230,12 +230,12 @@ def creer(type_mouvement: str):
         except ErreursValidation as e:
             erreurs = e.erreurs
 
-    # Charger la watch source pour le bandeau d'info
+    # Charger le titre source (ordre exécuté) pour le bandeau d'info
     source_watch = None
-    if source_watch_id:
-        from app.services import watchlist as svc_watchlist
+    if source_titre_id:
+        from app.services import titres as svc_titres
 
-        source_watch = svc_watchlist.trouver(depot, source_watch_id)
+        source_watch = svc_titres.trouver(depot, source_titre_id)
 
     # Charger l'événement source (rappel DCA) pour le bandeau d'info
     source_evenement = None
@@ -253,7 +253,7 @@ def creer(type_mouvement: str):
         erreurs=erreurs,
         comptes=depot.charger("comptes"),
         titres=depot.charger("titres"),
-        source_ordre_watch_id=source_watch_id,
+        source_ordre_titre_id=source_titre_id,
         source_ordre_id=source_ordre_id,
         source_watch=source_watch,
         source_evenement_id=source_evenement_id,
